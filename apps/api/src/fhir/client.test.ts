@@ -51,3 +51,23 @@ describe('FhirReadService', () => {
     expect(panel.length).toBeGreaterThanOrEqual(6);
   });
 });
+
+describe('FhirReadService with a SMART token client', () => {
+  it('attaches the SMART access token as a Bearer header on every HAPI call', async () => {
+    const db = new Database(':memory:');
+    migrate(db);
+    const tokenClient = { getAccessToken: jest.fn().mockResolvedValue('smart-access-token') };
+    const fetchSpy = jest.spyOn(global, 'fetch').mockResolvedValue({
+      ok: true,
+      json: async () => ({ resourceType: 'Patient', id: 'maria-chen', name: [{ given: ['Maria'], family: 'Chen' }] }),
+    } as Response);
+
+    const service = new FhirReadService(db, 'http://localhost:8080/fhir', tokenClient);
+    await service.getPatient(coordinator, 'maria-chen');
+
+    expect(tokenClient.getAccessToken).toHaveBeenCalled();
+    const [, init] = fetchSpy.mock.calls[0];
+    expect((init?.headers as Record<string, string>).Authorization).toBe('Bearer smart-access-token');
+    fetchSpy.mockRestore();
+  });
+});

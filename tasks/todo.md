@@ -19,7 +19,7 @@
 - [x] B3. Auth login + role middleware (Supertest TDD; no /me)
 - [x] B4. Role→FHIR-scope enforcement in API (SW denied non-SDOH — real denial)
 - [x] B5. FHIR read service + routes; audit written in the single HAPI wrapper
-- [ ] B6. SMART Backend Services token flow + HAPI interceptor (sequenced last; honest-staging note if it slips)
+- [x] B6. SMART Backend Services token flow + HAPI interceptor (sequenced last) — token mint/exchange/cache/attach is real and tested; HAPI-side enforcement not possible on the stock image (no shell to configure an interceptor) — honest-staging note recorded in plan.md §3
 
 ### Phase C — Frontend foundation
 - [ ] C1. Design tokens (HANDOFF §4) + app shell

@@ -39,11 +39,23 @@ interface FhirBundle<T> {
 
 const COORDINATOR_PANEL_GROUP_ID = 'coordinator-demo-panel';
 
+export interface AccessTokenProvider {
+  getAccessToken(): Promise<string>;
+}
+
 export class FhirReadService {
-  constructor(private readonly db: Database.Database, private readonly baseUrl: string) {}
+  constructor(
+    private readonly db: Database.Database,
+    private readonly baseUrl: string,
+    private readonly tokenClient?: AccessTokenProvider
+  ) {}
 
   private async fhirFetch<T>(path: string): Promise<T> {
-    const res = await fetch(`${this.baseUrl}${path}`);
+    const headers: Record<string, string> = {};
+    if (this.tokenClient) {
+      headers.Authorization = `Bearer ${await this.tokenClient.getAccessToken()}`;
+    }
+    const res = await fetch(`${this.baseUrl}${path}`, { headers });
     if (!res.ok) {
       throw new Error(`FHIR request failed: GET ${path} -> ${res.status}`);
     }
