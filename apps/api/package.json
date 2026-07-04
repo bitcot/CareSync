@@ -10,7 +10,8 @@
     "test": "jest",
     "lint": "eslint src",
     "import": "tsx src/scripts/import-fhir.ts",
-    "seed": "tsx src/scripts/seed.ts"
+    "migrate": "tsx src/scripts/migrate.ts",
+    "seed": "tsx src/db/seed.ts"
   },
   "devDependencies": {
     "@types/bcrypt": "^6.0.0",
