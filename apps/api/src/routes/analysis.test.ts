@@ -12,7 +12,7 @@ import { AgentEvent, RiskOutput } from '../agents/riskAgent';
 // result with one in-bundle citation and one fabricated citation, so the
 // route's GD11 validation gate (Seam 2) has something real to drop.
 async function* stubAgent(): AsyncIterable<AgentEvent> {
-  yield { type: 'token', text: 'Reviewing chart...' };
+  yield { type: 'token', agentId: 'risk', text: 'Reviewing chart...' };
   const output: RiskOutput = {
     riskScore: 87,
     riskLevel: 'critical',
@@ -22,7 +22,7 @@ async function* stubAgent(): AsyncIterable<AgentEvent> {
     ],
     readmissionProbability: 0.7,
   };
-  yield { type: 'result', output };
+  yield { type: 'result', agentId: 'risk', output };
 }
 
 function buildApp(db: Database.Database) {
@@ -61,19 +61,19 @@ function parseSse(body: string): SseEvent[] {
 }
 
 async function* throwingAgent(): AsyncIterable<AgentEvent> {
-  yield { type: 'token', text: 'Reviewing the full chart in detail before reaching any conclusion at all here...' };
+  yield { type: 'token', agentId: 'risk', text: 'Reviewing the full chart in detail before reaching any conclusion at all here...' };
   throw new Error('OpenAI request failed');
 }
 
 async function* narrationWithFabricatedCitationAgent(): AsyncIterable<AgentEvent> {
-  yield { type: 'token', text: 'Notably, Observation/does-not-exist supports this, and Condition/maria-chen-chf too.' };
+  yield { type: 'token', agentId: 'risk', text: 'Notably, Observation/does-not-exist supports this, and Condition/maria-chen-chf too.' };
   const output: RiskOutput = {
     riskScore: 40,
     riskLevel: 'moderate',
     flags: [],
     readmissionProbability: 0.3,
   };
-  yield { type: 'result', output };
+  yield { type: 'result', agentId: 'risk', output };
 }
 
 describe('analysis routes (B2 — SSE stream + citation validation gate, GD11)', () => {

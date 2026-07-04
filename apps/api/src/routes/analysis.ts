@@ -57,6 +57,13 @@ export function createAnalysisRouter(fhirService: FhirReadService, runAgent: Run
           continue;
         }
 
+        // S2 wires only the Risk agent; narrowing on agentId keeps this route
+        // type-safe against the shared multi-agent AgentEvent union without
+        // changing what it emits (later task forwards other agents).
+        if (event.agentId !== 'risk') {
+          continue;
+        }
+
         const remainder = narration.flush();
         if (remainder) {
           writeSseEvent(res, 'token', { text: remainder });

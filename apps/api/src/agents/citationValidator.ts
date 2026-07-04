@@ -8,29 +8,59 @@ export interface CitationValidationResult {
   dropped: AgentFlag[];
 }
 
-/**
- * Seam 2 — GD11 citation enforcement. Pure, no I/O.
- *
- * Partitions agent flags into those whose `fhirResourceId` is present in the
- * retrieved bundle (`validIds`, a set of `ResourceType/id` strings) and those
- * that are not (hallucinated / out-of-bundle). The `fhirResourceId` is trimmed
- * of surrounding whitespace before matching; FHIR ids are case-sensitive, so no
- * case-folding is applied. Valid flags are returned with the trimmed id.
- */
-export function validateCitations(flags: AgentFlag[], validIds: Set<string>): CitationValidationResult {
-  const valid: AgentFlag[] = [];
-  const dropped: AgentFlag[] = [];
+export interface ListCitationValidationResult<T> {
+  valid: T[];
+  dropped: T[];
+}
 
-  for (const flag of flags) {
-    const trimmedId = flag.fhirResourceId.trim();
-    if (validIds.has(trimmedId)) {
-      valid.push({ ...flag, fhirResourceId: trimmedId });
+/**
+ * Seam 2 — GD11 citation enforcement, generalized to items that cite a LIST of
+ * `ResourceType/id`s (e.g. the Action Planner's tasks, whose `fhirResources`
+ * is a string[]). Pure, no I/O.
+ *
+ * `getIds` reads an item's cited id(s); `withIds` rebuilds the item with a
+ * narrowed id list. Each id is trimmed of surrounding whitespace before
+ * matching; FHIR ids are case-sensitive, so no case-folding is applied. An
+ * item is KEPT iff at least one of its cited ids is in the bundle (`validIds`),
+ * and when kept its id list is narrowed (via `withIds`) to only the valid ids;
+ * an item whose citations all drop is dropped entirely (with its ids untouched).
+ */
+export function validateCitationList<T>(
+  items: T[],
+  getIds: (item: T) => string[],
+  withIds: (item: T, validCitations: string[]) => T,
+  validIds: Set<string>
+): ListCitationValidationResult<T> {
+  const valid: T[] = [];
+  const dropped: T[] = [];
+
+  for (const item of items) {
+    const kept = getIds(item)
+      .map((id) => id.trim())
+      .filter((id) => validIds.has(id));
+    if (kept.length > 0) {
+      valid.push(withIds(item, kept));
     } else {
-      dropped.push(flag);
+      dropped.push(item);
     }
   }
 
   return { valid, dropped };
+}
+
+/**
+ * Seam 2 — GD11 citation enforcement for flags that cite a single
+ * `fhirResourceId`. Thin wrapper over {@link validateCitationList}: partitions
+ * flags by whether their (trimmed) `fhirResourceId` is present in the bundle,
+ * returning kept flags with the trimmed id and dropping the rest unchanged.
+ */
+export function validateCitations(flags: AgentFlag[], validIds: Set<string>): CitationValidationResult {
+  return validateCitationList(
+    flags,
+    (flag) => [flag.fhirResourceId],
+    (flag, [trimmedId]) => ({ ...flag, fhirResourceId: trimmedId }),
+    validIds
+  );
 }
 
 const CITATION_PATTERN = /\b[A-Z][A-Za-z]*\/[A-Za-z0-9][A-Za-z0-9._-]*\b/g;
