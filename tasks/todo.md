@@ -1,0 +1,39 @@
+# Active Plan — CareSync AI
+
+**Feature:** `caresync-ai` · **Current slice:** S1 — Walking Skeleton
+**Full plan:** `docs/plans/caresync-ai/implementation-plan.md` (Iteration 1, ponytail-simplified)
+**Spec:** `docs/plans/caresync-ai/prd.md` · **Slice def:** `docs/plans/caresync-ai/issues.md`
+
+## Approved: yes (2026-07-04)
+
+## S1 — Walking Skeleton (stories 17, 33, 34, 36)
+
+### Phase A — Scaffold & infra
+- [ ] A1. Monorepo scaffold: apps/web (Vite+React+TS+Tailwind), apps/api (Express+TS); Vitest + Jest/Supertest
+- [ ] A2. Docker HAPI FHIR R4 + healthcheck (import retries until healthy)
+- [ ] A3. Import Maria Chen bundle + ~5 panel patients via $batch (500-Synthea deferred to S5)
+
+### Phase B — Backend core (test-first)
+- [ ] B1. SQLite: users + audit_log (no sessions table)
+- [ ] B2. Seed 3 demo accounts (bcrypt)
+- [ ] B3. Auth login + role middleware (Supertest TDD; no /me)
+- [ ] B4. Role→FHIR-scope enforcement in API (SW denied non-SDOH — real denial)
+- [ ] B5. FHIR read service + routes; audit written in the single HAPI wrapper
+- [ ] B6. SMART Backend Services token flow + HAPI interceptor (sequenced last; honest-staging note if it slips)
+
+### Phase C — Frontend foundation
+- [ ] C1. Design tokens (HANDOFF §4) + app shell
+- [ ] C2. Router role guards + TanStack Query client + login (W01); token in localStorage + useAuth (no Zustand yet)
+- [ ] C3. W12 My Patient Panel (Coordinator landing)
+- [ ] C4. Patient detail minimal (name + conditions from HAPI)
+
+### Phase D — Seam verification
+- [ ] D1. API-boundary Supertest suite green (Seam 1 reference)
+- [ ] D2. End-to-end smoke (docker up → login → panel → Maria → conditions live)
+
+## Verification
+- `npm run test:api` green; `npm run build && npm run lint` clean
+- All S1 acceptance criteria in `issues.md` checked
+
+## Rollback
+- `docker compose down -v` + delete SQLite → full reset. No external systems, no real PHI.

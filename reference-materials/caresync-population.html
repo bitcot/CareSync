@@ -1,0 +1,710 @@
+<title>CareSync AI — Population Dashboard</title>
+<style>
+  :root{
+    --bg:#07111E; --surface:#0C1829; --surface-raised:#132842;
+    --border:#1A3450; --border-light:#244A6A;
+    --cyan:#00C8FF; --red:#E84848; --violet:#8661D4; --emerald:#0FC48A; --amber:#F0970A;
+    --text:#C8E6F5; --text-muted:#5A8FAA; --text-dim:#2C567A;
+    --mono:"SF Mono",Menlo,Consolas,monospace;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%;overflow:hidden}
+  body{
+    background:var(--bg);color:var(--text);
+    font:13px/1.45 -apple-system,"SF Pro Text","Segoe UI",system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  svg{display:block}
+  button{font:inherit;cursor:pointer;color:inherit;background:none;border:none}
+  button:focus-visible,a:focus-visible{outline:2px solid var(--cyan);outline-offset:2px;border-radius:4px}
+  .num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+
+  .app{height:100vh;display:flex;flex-direction:column}
+
+  /* ============ HEADER ============ */
+  .hdr{
+    height:48px;flex:none;display:flex;align-items:center;gap:14px;
+    padding:0 16px;background:var(--surface);border-bottom:1px solid var(--border);
+  }
+  .logo{display:flex;align-items:center;gap:9px}
+  .logo-mark{
+    width:26px;height:26px;border-radius:7px;flex:none;
+    background:linear-gradient(135deg,rgba(0,200,255,.22),rgba(134,97,212,.22));
+    border:1px solid var(--border-light);display:grid;place-items:center;color:var(--cyan);
+  }
+  .logo-name{font-size:14px;font-weight:700;letter-spacing:.01em}
+  .logo-name span{color:var(--cyan);font-weight:600}
+  .std-pills{display:flex;gap:6px;margin-left:4px}
+  .pill{
+    font-size:10px;font-weight:600;letter-spacing:.06em;color:var(--text-muted);
+    border:1px solid var(--border);border-radius:999px;padding:2.5px 9px;background:var(--bg);
+  }
+  .hdr-right{margin-left:auto;display:flex;align-items:center;gap:16px}
+  .sync{display:flex;align-items:center;gap:7px;font-size:11px;color:var(--text-muted)}
+  .sync-dot{width:7px;height:7px;border-radius:50%;background:var(--emerald);box-shadow:0 0 6px rgba(15,196,138,.7)}
+  .hdr-bell{position:relative;color:var(--text-muted);padding:4px;border-radius:6px}
+  .hdr-bell:hover{color:var(--text)}
+  .bell-dot{position:absolute;top:3px;right:3px;width:7px;height:7px;border-radius:50%;background:var(--red);border:1.5px solid var(--surface)}
+  .avatar{
+    width:28px;height:28px;border-radius:50%;flex:none;display:grid;place-items:center;
+    font-size:11px;font-weight:700;color:var(--cyan);
+    background:rgba(0,200,255,.12);border:1px solid var(--border-light);
+  }
+
+  /* ============ SHELL ============ */
+  .shell{flex:1;display:flex;min-height:0}
+
+  /* ---- left nav rail ---- */
+  .rail{
+    width:56px;flex:none;background:var(--surface);border-right:1px solid var(--border);
+    display:flex;flex-direction:column;align-items:center;padding:10px 0;gap:4px;
+  }
+  .rail button{
+    width:38px;height:38px;border-radius:10px;display:grid;place-items:center;
+    color:var(--text-muted);transition:color .15s,background .15s;
+  }
+  .rail button:hover{color:var(--text);background:var(--surface-raised)}
+  .rail button.active{color:var(--cyan);background:rgba(0,200,255,.14)}
+  .rail .spacer{flex:1}
+
+  /* ---- main ---- */
+  .main{flex:1;min-width:0;display:flex;flex-direction:column;gap:10px;padding:10px;overflow:hidden}
+
+  /* ============ ZONE 1 : KPI BAR ============ */
+  .kpis{
+    height:88px;flex:none;display:flex;background:var(--surface);
+    border:1px solid var(--border);border-radius:12px;overflow:hidden;
+  }
+  .kpi{
+    flex:1;min-width:0;padding:14px 18px 12px;display:flex;flex-direction:column;justify-content:center;
+    border-right:1px solid var(--border);
+  }
+  .kpi:last-child{border-right:none}
+  .kpi-val{font-size:24px;font-weight:700;line-height:1.1;font-family:var(--mono);font-variant-numeric:tabular-nums}
+  .kpi-label{font-size:11px;color:var(--text-muted);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .kpi-trend{font-size:10px;margin-top:2px;display:flex;align-items:center;gap:4px;color:var(--text-dim)}
+  .kpi-trend svg{flex:none}
+  .t-bad{color:var(--red)} .t-good{color:var(--emerald)}
+  .c-cyan{color:var(--cyan)} .c-red{color:var(--red)} .c-amber{color:var(--amber)}
+  .c-violet{color:var(--violet)} .c-emerald{color:var(--emerald)}
+
+  /* ============ PANELS (shared) ============ */
+  .panel{
+    background:var(--surface);border:1px solid var(--border);border-radius:12px;
+    display:flex;flex-direction:column;min-width:0;min-height:0;
+  }
+  .panel-hd{
+    flex:none;display:flex;align-items:center;gap:8px;
+    padding:11px 14px;border-bottom:1px solid var(--border);
+  }
+  .panel-title{font-size:13px;font-weight:600}
+  .badge{
+    font-size:10px;font-weight:700;letter-spacing:.04em;border-radius:999px;padding:2px 8px;
+    font-variant-numeric:tabular-nums;
+  }
+  .badge-red{background:rgba(232,72,72,.16);color:var(--red);border:1px solid rgba(232,72,72,.4)}
+  .badge-dim{background:var(--surface-raised);color:var(--text-muted);border:1px solid var(--border)}
+  .badge-emerald{background:rgba(15,196,138,.14);color:var(--emerald);border:1px solid rgba(15,196,138,.35)}
+
+  .btn{
+    display:inline-flex;align-items:center;gap:6px;border-radius:8px;
+    font-size:11px;font-weight:600;padding:5px 11px;transition:background .15s,border-color .15s;
+    white-space:nowrap;
+  }
+  .btn-cyan{border:1px solid var(--cyan);color:var(--cyan);background:transparent}
+  .btn-cyan:hover{background:rgba(0,200,255,.1)}
+  .btn-deploy{border:1px solid var(--cyan);color:var(--text);background:rgba(232,72,72,.16)}
+  .btn-deploy:hover{background:rgba(232,72,72,.26)}
+  .btn[disabled]{opacity:.65;cursor:default}
+  .spin{animation:spin .8s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+
+  /* ============ ZONE 2 ============ */
+  .mid{flex:1.45;display:flex;gap:10px;min-height:0}
+  .scatter-panel{flex:1.4}
+  .critical-panel{flex:1}
+
+  .chart-wrap{position:relative;flex:1;min-height:0;margin:4px 6px 6px 2px}
+  .chart-wrap canvas{position:absolute;inset:0;width:100%;height:100%}
+  .glow-layer{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+  .glow{
+    position:absolute;width:22px;height:22px;margin:-11px 0 0 -11px;border-radius:50%;
+    background:radial-gradient(circle,rgba(232,72,72,.35),rgba(232,72,72,0) 70%);
+    animation:pulse 2.2s ease-in-out infinite;
+  }
+  @keyframes pulse{
+    0%,100%{transform:scale(.7);opacity:.35}
+    50%{transform:scale(1.35);opacity:.85}
+  }
+  .tip{
+    position:absolute;transform:translate(-8%,-100%);margin-top:-14px;
+    background:var(--surface-raised);border:1px solid var(--cyan);border-radius:8px;
+    padding:5px 10px;font-size:11px;white-space:nowrap;pointer-events:none;
+    box-shadow:0 4px 18px rgba(0,0,0,.5),0 0 0 3px rgba(0,200,255,.08);z-index:2;
+  }
+  .tip b{color:var(--cyan);font-weight:600}
+  .tip .num{color:var(--text-muted)}
+  .tip::after{
+    content:"";position:absolute;left:16px;top:100%;
+    border:5px solid transparent;border-top-color:var(--cyan);
+  }
+
+  /* critical list */
+  .crit-list{flex:1;min-height:0;display:flex;flex-direction:column;padding:5px 8px;overflow:hidden}
+  .crit-row{
+    flex:1;display:flex;align-items:center;gap:9px;padding:0 6px;min-height:0;
+    border-bottom:1px solid rgba(26,52,80,.55);
+  }
+  .crit-row:last-child{border-bottom:none}
+  .score-chip{
+    flex:none;width:30px;height:22px;border-radius:6px;display:grid;place-items:center;
+    font-family:var(--mono);font-size:11px;font-weight:700;font-variant-numeric:tabular-nums;
+    background:rgba(232,72,72,.16);color:var(--red);border:1px solid rgba(232,72,72,.4);
+  }
+  .crit-who{flex:1;min-width:0}
+  .crit-name,.crit-cond{display:block}
+  .crit-name{font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .crit-name span{color:var(--text-muted);font-weight:400}
+  .crit-cond{font-size:10.5px;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .crit-days{flex:none;font-family:var(--mono);font-size:10.5px;color:var(--text-muted);width:24px;text-align:right}
+  .minibar{flex:none;width:44px;height:4px;border-radius:2px;background:var(--surface-raised);overflow:hidden}
+  .minibar i{display:block;height:100%;border-radius:2px;background:linear-gradient(90deg,var(--amber),var(--red))}
+  .crit-analyze{flex:none;font-size:11px;font-weight:600;color:var(--cyan);text-decoration:none}
+  .crit-analyze:hover{text-decoration:underline}
+  .crit-ft{
+    flex:none;display:flex;align-items:center;justify-content:space-between;
+    padding:8px 14px;border-top:1px solid var(--border);
+  }
+  .viewall{font-size:11.5px;color:var(--cyan);text-decoration:none;font-weight:600}
+  .viewall:hover{text-decoration:underline}
+
+  /* ============ ZONE 3 ============ */
+  .bottom{flex:1;display:flex;gap:10px;min-height:0}
+  .bottom .panel{flex:1}
+  .panel-body{flex:1;min-height:0;display:flex;flex-direction:column;justify-content:space-evenly;padding:6px 14px;overflow:hidden}
+
+  /* team workload */
+  .coord{display:flex;flex-direction:column;gap:4px;min-height:0}
+  .coord-top{display:flex;align-items:center;gap:9px}
+  .init{
+    width:26px;height:26px;border-radius:50%;flex:none;display:grid;place-items:center;
+    font-size:10px;font-weight:700;
+  }
+  .coord-nm{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:12px;font-weight:600}
+  .coord-nm span{color:var(--text-muted);font-weight:400;font-size:10.5px}
+  .coord-meta{flex:none;font-size:10.5px;color:var(--text-muted);font-variant-numeric:tabular-nums;text-align:right;line-height:1.35}
+  .coord-meta b{color:var(--text);font-weight:600}
+  .loadbar{height:4px;border-radius:2px;background:var(--surface-raised);overflow:hidden}
+  .loadbar i{display:block;height:100%;width:0;border-radius:2px;transition:width 1s cubic-bezier(.2,.7,.2,1)}
+
+  /* quality measures */
+  .meas{display:flex;flex-direction:column;gap:4px;min-height:0}
+  .meas-top{display:flex;align-items:baseline;gap:8px}
+  .meas-nm{flex:1;min-width:0;font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .meas-pct{font-size:10.5px;color:var(--text-muted);font-variant-numeric:tabular-nums;white-space:nowrap}
+  .meas-bot{display:flex;align-items:center;gap:8px}
+  .meas-bar{flex:1;height:5px;border-radius:3px;background:var(--surface-raised);overflow:hidden;position:relative}
+  .meas-bar .tgt{position:absolute;top:-1px;bottom:-1px;width:2px;background:var(--text-dim)}
+  .meas-bar i{display:block;height:100%;width:0;border-radius:3px;transition:width 1s cubic-bezier(.2,.7,.2,1)}
+  .meas-ct{flex:none;font-size:10px;color:var(--text-dim);font-variant-numeric:tabular-nums;white-space:nowrap}
+
+  .f-red{background:var(--red)} .f-amber{background:var(--amber)}
+  .f-cyan{background:var(--cyan)} .f-emerald{background:var(--emerald)}
+
+  /* activity feed */
+  .live{display:flex;align-items:center;gap:6px;font-size:10px;font-weight:700;letter-spacing:.08em;color:var(--emerald)}
+  .live-dot{width:7px;height:7px;border-radius:50%;background:var(--emerald);animation:pulse 1.6s ease-in-out infinite}
+  .feed{flex:1;min-height:0;display:flex;flex-direction:column;justify-content:space-evenly;padding:4px 14px;overflow:hidden}
+  .evt{
+    display:flex;align-items:center;gap:9px;min-height:0;
+    opacity:0;transform:translateY(7px);
+    animation:rise .45s cubic-bezier(.2,.7,.2,1) forwards;
+  }
+  @keyframes rise{to{opacity:1;transform:none}}
+  .evt:nth-child(1){animation-delay:.05s}.evt:nth-child(2){animation-delay:.13s}
+  .evt:nth-child(3){animation-delay:.21s}.evt:nth-child(4){animation-delay:.29s}
+  .evt:nth-child(5){animation-delay:.37s}.evt:nth-child(6){animation-delay:.45s}
+  .evt:nth-child(7){animation-delay:.53s}.evt:nth-child(8){animation-delay:.61s}
+  .evt-ic{
+    width:22px;height:22px;border-radius:6px;flex:none;display:grid;place-items:center;
+    background:var(--surface-raised);border:1px solid var(--border);
+  }
+  .evt-tx{flex:1;min-width:0;font-size:11.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .evt-tx b{font-weight:600}
+  .evt-tx span{color:var(--text-muted)}
+  .evt-t{flex:none;font-size:10px;color:var(--text-dim);font-variant-numeric:tabular-nums;white-space:nowrap}
+
+  /* toast */
+  .toast{
+    position:fixed;right:18px;bottom:18px;z-index:50;
+    display:flex;align-items:center;gap:9px;
+    background:var(--surface-raised);border:1px solid var(--cyan);border-radius:10px;
+    padding:10px 16px;font-size:12px;font-weight:600;
+    box-shadow:0 8px 30px rgba(0,0,0,.55);
+    opacity:0;transform:translateY(12px);pointer-events:none;
+    transition:opacity .25s,transform .25s;
+  }
+  .toast.show{opacity:1;transform:none}
+  .toast svg{color:var(--emerald)}
+
+  @media (prefers-reduced-motion:reduce){
+    *,*::before,*::after{animation-duration:.001s !important;animation-delay:0s !important;transition-duration:.001s !important}
+    .glow,.live-dot{animation:none;opacity:.5}
+    .evt{opacity:1;transform:none}
+  }
+</style>
+
+<div class="app">
+
+  <!-- ================= HEADER ================= -->
+  <header class="hdr">
+    <div class="logo">
+      <div class="logo-mark">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg>
+      </div>
+      <div class="logo-name">CareSync <span>AI</span></div>
+    </div>
+    <div class="std-pills">
+      <span class="pill">FHIR R4</span>
+      <span class="pill">SMART</span>
+      <span class="pill">CDS Hooks</span>
+    </div>
+    <div class="hdr-right">
+      <div class="sync"><span class="sync-dot"></span>Synced · 847 records · 18m ago</div>
+      <button class="hdr-bell" aria-label="Notifications">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>
+        <span class="bell-dot"></span>
+      </button>
+      <div class="avatar">JC</div>
+    </div>
+  </header>
+
+  <div class="shell">
+
+    <!-- ================= LEFT RAIL ================= -->
+    <nav class="rail" aria-label="Primary">
+      <button class="active" aria-label="Population" title="Population">
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+      </button>
+      <button aria-label="Patients" title="Patients">
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a8 8 0 0 1 16 0v1"/></svg>
+      </button>
+      <button aria-label="Quality" title="Quality">
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10"/><path d="M10 20V4"/><path d="M16 20v-7"/><path d="M22 20H2"/></svg>
+      </button>
+      <button aria-label="Governance" title="Governance">
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l8 3.5v5c0 5-3.5 9-8 11.5C7.5 19.5 4 15.5 4 10.5v-5z"/><path d="M9 12l2 2 4-4"/></svg>
+      </button>
+      <button aria-label="Cost and ROI" title="Cost &amp; ROI">
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20"/><path d="M17 6H9.5a3 3 0 0 0 0 6h5a3 3 0 0 1 0 6H6"/></svg>
+      </button>
+      <button aria-label="Alerts" title="Alerts">
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>
+      </button>
+      <div class="spacer"></div>
+      <button aria-label="Settings" title="Settings">
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1 1.55V21a2 2 0 1 1-4 0v-.09a1.7 1.7 0 0 0-1-1.55 1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.7 1.7 0 0 0 .34-1.87 1.7 1.7 0 0 0-1.55-1H3a2 2 0 1 1 0-4h.09a1.7 1.7 0 0 0 1.55-1 1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.7 1.7 0 0 0 1.87.34h.01a1.7 1.7 0 0 0 1-1.55V3a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 1 1.55 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87v.01a1.7 1.7 0 0 0 1.55 1H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.55 1z"/></svg>
+      </button>
+    </nav>
+
+    <!-- ================= MAIN ================= -->
+    <main class="main">
+
+      <!-- ZONE 1 · KPI bar -->
+      <section class="kpis" aria-label="Population summary">
+        <div class="kpi">
+          <div class="kpi-val c-cyan">847</div>
+          <div class="kpi-label">Total Patients</div>
+          <div class="kpi-trend">enrolled &amp; active</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-val c-red">23</div>
+          <div class="kpi-label">Critical Zone</div>
+          <div class="kpi-trend t-bad">
+            <svg width="9" height="9" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 8l6-6M4 2h4v4"/></svg>
+            +4 vs last week
+          </div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-val c-amber">156</div>
+          <div class="kpi-label">High Risk</div>
+          <div class="kpi-trend">+2 vs last week</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-val c-violet">312</div>
+          <div class="kpi-label">Tasks Open</div>
+          <div class="kpi-trend">−18 vs last week</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-val c-emerald">18</div>
+          <div class="kpi-label">Readmissions Prevented (30d)</div>
+          <div class="kpi-trend t-good">
+            <svg width="9" height="9" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 2l6 6M8 4v4H4"/></svg>
+            improved vs last week
+          </div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-val c-emerald">$247,400</div>
+          <div class="kpi-label">Cost Avoidance (30d)</div>
+          <div class="kpi-trend t-good">+$31K vs last week</div>
+        </div>
+      </section>
+
+      <!-- ZONE 2 -->
+      <section class="mid">
+
+        <!-- scatter -->
+        <div class="panel scatter-panel">
+          <div class="panel-hd">
+            <span class="panel-title">Patient Risk Distribution</span>
+            <span class="badge badge-dim">847 plotted · 180 sampled</span>
+            <span style="margin-left:auto"></span>
+            <button class="btn btn-cyan" id="batchBtn">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polygon points="6 3 20 12 6 21 6 3"/></svg>
+              Run Batch Analysis
+            </button>
+          </div>
+          <div class="chart-wrap" id="chartWrap">
+            <canvas id="scatter"></canvas>
+            <div class="glow-layer" id="glowLayer"></div>
+            <div class="tip" id="tip" hidden><b>Maria Chen</b> · Risk <span class="num">87</span> · <span class="num">2d</span> since contact</div>
+          </div>
+        </div>
+
+        <!-- critical zone -->
+        <div class="panel critical-panel">
+          <div class="panel-hd">
+            <span class="panel-title">Critical Zone</span>
+            <span class="badge badge-red">23</span>
+            <span style="margin-left:auto"></span>
+            <button class="btn btn-deploy deploy-btn">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h7l-1 8 10-12h-7z"/></svg>
+              Deploy All Agents
+            </button>
+          </div>
+          <div class="crit-list" id="critList"></div>
+          <div class="crit-ft">
+            <a class="viewall" href="#">View all 23 →</a>
+            <button class="btn btn-deploy deploy-btn" style="padding:3.5px 9px;font-size:10.5px">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h7l-1 8 10-12h-7z"/></svg>
+              Deploy All Agents
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ZONE 3 -->
+      <section class="bottom">
+
+        <!-- team workload -->
+        <div class="panel">
+          <div class="panel-hd">
+            <span class="panel-title">Care Team</span>
+            <span style="margin-left:auto"></span>
+            <span class="badge badge-emerald">12 active</span>
+          </div>
+          <div class="panel-body" id="teamBody"></div>
+        </div>
+
+        <!-- quality -->
+        <div class="panel">
+          <div class="panel-hd">
+            <span class="panel-title">HEDIS Progress</span>
+            <span style="margin-left:auto"></span>
+            <span class="badge badge-dim">Q4 2026</span>
+          </div>
+          <div class="panel-body" id="qualBody"></div>
+        </div>
+
+        <!-- activity -->
+        <div class="panel">
+          <div class="panel-hd">
+            <span class="panel-title">Activity Feed</span>
+            <span style="margin-left:auto"></span>
+            <span class="live"><span class="live-dot"></span>LIVE</span>
+          </div>
+          <div class="feed" id="feed"></div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+</div>
+
+<!-- toast -->
+<div class="toast" id="toast" role="status">
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+  <span id="toastMsg">23 analyses queued</span>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ---------- seeded PRNG (mulberry32) ---------- */
+  function mulberry32(a){
+    return function(){
+      a|=0; a=a+0x6D2B79F5|0;
+      var t=Math.imul(a^a>>>15,1|a);
+      t=t+Math.imul(t^t>>>7,61|t)^t;
+      return ((t^t>>>14)>>>0)/4294967296;
+    };
+  }
+  var rand=mulberry32(20260703);
+
+  /* ---------- population model ---------- */
+  var dots=[];
+  // Maria Chen anchor dot (tooltip target)
+  dots.push({x:2,y:87,c:"red",glow:true,maria:true});
+  var i;
+  for(i=0;i<22;i++)  dots.push({x:1+rand()*32,  y:78+rand()*20, c:"red",   glow:true});
+  for(i=0;i<80;i++)  dots.push({x:8+rand()*72,  y:50+rand()*29, c:"amber"});
+  for(i=0;i<60;i++)  dots.push({x:12+rand()*58, y:30+rand()*19, c:"violet"});
+  for(i=0;i<20;i++)  dots.push({x:44+rand()*44, y:4+rand()*24,  c:"emerald"});
+
+  var COLORS={red:"232,72,72",amber:"240,151,10",violet:"134,97,212",emerald:"15,196,138"};
+  var PAD={l:38,r:14,t:16,b:34};
+
+  var wrap=document.getElementById("chartWrap"),
+      cv=document.getElementById("scatter"),
+      ctx=cv.getContext("2d"),
+      glowLayer=document.getElementById("glowLayer"),
+      tip=document.getElementById("tip");
+
+  function px(v,min,max,a,b){return a+(v-min)/(max-min)*(b-a);}
+
+  function draw(){
+    var W=wrap.clientWidth,H=wrap.clientHeight;
+    if(W<40||H<40)return;
+    var dpr=window.devicePixelRatio||1;
+    cv.width=W*dpr; cv.height=H*dpr;
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    ctx.clearRect(0,0,W,H);
+
+    var x0=PAD.l,x1=W-PAD.r,y0=H-PAD.b,y1=PAD.t;
+    function X(d){return px(d,0,90,x0,x1);}
+    function Y(s){return px(s,0,100,y0,y1);}
+
+    /* frame + gridlines */
+    ctx.strokeStyle="#1A3450"; ctx.lineWidth=1;
+    ctx.strokeRect(x0+.5,y1+.5,x1-x0-1,y0-y1-1);
+
+    ctx.font="10px 'SF Mono',Menlo,monospace";
+    ctx.fillStyle="#5A8FAA";
+    /* x ticks */
+    [0,15,30,45,60,75,90].forEach(function(t){
+      var x=X(t);
+      ctx.textAlign="center"; ctx.textBaseline="top";
+      ctx.fillText(String(t),x,y0+6);
+      ctx.strokeStyle="rgba(26,52,80,.45)";
+      ctx.beginPath(); ctx.moveTo(x+.5,y1); ctx.lineTo(x+.5,y0); ctx.stroke();
+    });
+    /* y ticks */
+    [0,25,50,75,100].forEach(function(t){
+      var y=Y(t);
+      ctx.fillStyle="#5A8FAA";
+      ctx.textAlign="right"; ctx.textBaseline="middle";
+      ctx.fillText(String(t),x0-7,y);
+      ctx.strokeStyle="rgba(26,52,80,.45)";
+      ctx.beginPath(); ctx.moveTo(x0,y+.5); ctx.lineTo(x1,y+.5); ctx.stroke();
+    });
+
+    /* axis titles */
+    ctx.fillStyle="#5A8FAA";
+    ctx.font="10px -apple-system,'SF Pro Text','Segoe UI',system-ui,sans-serif";
+    ctx.textAlign="center"; ctx.textBaseline="alphabetic";
+    ctx.fillText("DAYS SINCE LAST CONTACT",(x0+x1)/2,H-6);
+    ctx.save();
+    ctx.translate(11,(y0+y1)/2); ctx.rotate(-Math.PI/2);
+    ctx.fillText("RISK SCORE",0,0);
+    ctx.restore();
+
+    /* quadrant dashed lines: x=45, y=70 */
+    ctx.strokeStyle="rgba(90,143,170,.4)";
+    ctx.setLineDash([4,4]); ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(X(45)+.5,y1); ctx.lineTo(X(45)+.5,y0); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x0,Y(70)+.5); ctx.lineTo(x1,Y(70)+.5); ctx.stroke();
+    ctx.setLineDash([]);
+
+    /* quadrant labels */
+    ctx.fillStyle="#2C567A";
+    ctx.font="600 9.5px -apple-system,'SF Pro Text','Segoe UI',system-ui,sans-serif";
+    ctx.textAlign="left"; ctx.textBaseline="top";
+    ctx.fillText("CRITICAL — ACT NOW",x0+8,y1+7);
+    ctx.textAlign="right";
+    ctx.fillText("MONITOR — TRENDING UP",x1-8,y1+7);
+    ctx.textAlign="left"; ctx.textBaseline="bottom";
+    ctx.fillText("STABLE — ROUTINE",x0+8,y0-7);
+    ctx.textAlign="right";
+    ctx.fillText("WATCH — OVERDUE CONTACT",x1-8,y0-7);
+
+    /* dots */
+    var mariaPx=null;
+    dots.forEach(function(d){
+      var x=X(d.x),y=Y(d.y),r=5+((Math.round(d.x*7)+Math.round(d.y*13))%3); // 5–7 px radius, deterministic
+      ctx.beginPath();
+      ctx.arc(x,y,r,0,Math.PI*2);
+      ctx.fillStyle="rgba("+COLORS[d.c]+",.5)";
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(x,y,r*0.45,0,Math.PI*2);
+      ctx.fillStyle="rgba("+COLORS[d.c]+",.9)";
+      ctx.fill();
+      d._px=x; d._py=y;
+      if(d.maria)mariaPx=d;
+    });
+
+    /* pulsing glow divs on the 23 red dots */
+    glowLayer.innerHTML="";
+    dots.forEach(function(d,idx){
+      if(!d.glow)return;
+      var g=document.createElement("div");
+      g.className="glow";
+      g.style.left=d._px+"px";
+      g.style.top=d._py+"px";
+      g.style.animationDelay=((idx%7)*0.3)+"s";
+      glowLayer.appendChild(g);
+    });
+
+    /* tooltip on Maria */
+    if(mariaPx){
+      tip.hidden=false;
+      tip.style.left=Math.max(mariaPx._px,52)+"px";
+      tip.style.top=mariaPx._py+"px";
+    }
+  }
+
+  if("ResizeObserver" in window){
+    new ResizeObserver(draw).observe(wrap);
+  }else{
+    window.addEventListener("resize",draw);
+  }
+  draw();
+
+  /* ---------- critical zone list ---------- */
+  var patients=[
+    ["Maria Chen","68F","CHF · Diabetes",2,87],
+    ["Robert Kim","72M","COPD · HTN",5,84],
+    ["Sandra Torres","55F","CKD · Diabetes",1,82],
+    ["James Wilson","79M","CHF · A-Fib",7,81],
+    ["Dorothy Chen","83F","Dementia · Falls",3,79],
+    ["Michael Park","67M","Cancer · Depression",0,78],
+    ["Linda Rogers","71F","COPD · Diabetes",4,76],
+    ["Thomas Hill","88M","CHF · CKD",6,75]
+  ];
+  var critList=document.getElementById("critList");
+  critList.innerHTML=patients.map(function(p){
+    return '<div class="crit-row">'
+      +'<span class="score-chip">'+p[4]+'</span>'
+      +'<span class="crit-who"><span class="crit-name">'+p[0]+' <span>· '+p[1]+'</span></span>'
+      +'<span class="crit-cond">'+p[2]+'</span></span>'
+      +'<span class="crit-days">'+p[3]+'d</span>'
+      +'<span class="minibar"><i style="width:'+p[4]+'%"></i></span>'
+      +'<a class="crit-analyze" href="#">Analyze</a>'
+      +'</div>';
+  }).join("");
+
+  /* ---------- team workload ---------- */
+  var team=[
+    ["JC","Jessica Chen","Care Coord.",42,"8 open","14 done",65,"var(--cyan)","rgba(0,200,255,.14)","var(--cyan)"],
+    ["MR","Marcus Reid","Care Coord.",38,"12 open","8 done",82,"var(--amber)","rgba(240,151,10,.14)","var(--amber)"],
+    ["SP","Sofia Patel","Social Worker",31,"6 open","19 done",48,"var(--emerald)","rgba(15,196,138,.14)","var(--emerald)"],
+    ["DK","David Kim","Case Manager",45,"15 open","5 done",91,"var(--red)","rgba(232,72,72,.14)","var(--red)"]
+  ];
+  document.getElementById("teamBody").innerHTML=team.map(function(t){
+    return '<div class="coord">'
+      +'<div class="coord-top">'
+      +'<span class="init" style="color:'+t[7]+';background:'+t[8]+';border:1px solid '+t[8].replace(".14",".4")+'">'+t[0]+'</span>'
+      +'<span class="coord-nm">'+t[1]+' <span>· '+t[2]+'</span></span>'
+      +'<span class="coord-meta"><b>'+t[3]+'</b> patients · '+t[4]+' · '+t[5]+'</span>'
+      +'</div>'
+      +'<div class="loadbar"><i data-w="'+t[6]+'" style="background:'+t[9]+'"></i></div>'
+      +'</div>';
+  }).join("");
+
+  /* ---------- quality measures ---------- */
+  var measures=[
+    ["Diabetes HbA1c Control","71% / target 80%",71,80,"f-amber","89% of target","312 patients"],
+    ["Breast Cancer Screening","84% / target 85%",84,85,"f-cyan","99% of target","189 patients"],
+    ["CHF Readmission Rate","12.4% / target <15%",83,100,"f-emerald","on track","98 patients"],
+    ["Depression Screening","58% / target 75%",58,75,"f-red","77% of target","442 patients"]
+  ];
+  document.getElementById("qualBody").innerHTML=measures.map(function(m){
+    return '<div class="meas">'
+      +'<div class="meas-top"><span class="meas-nm">'+m[0]+'</span><span class="meas-pct num">'+m[1]+'</span></div>'
+      +'<div class="meas-bot">'
+      +'<span class="meas-bar"><span class="tgt" style="left:'+m[3]+'%"></span><i class="'+m[4]+'" data-w="'+m[2]+'"></i></span>'
+      +'<span class="meas-ct">'+m[5]+' · '+m[6]+'</span>'
+      +'</div></div>';
+  }).join("");
+
+  /* animate bars in */
+  requestAnimationFrame(function(){requestAnimationFrame(function(){
+    document.querySelectorAll("[data-w]").forEach(function(el){
+      el.style.width=el.getAttribute("data-w")+"%";
+    });
+  });});
+
+  /* ---------- activity feed ---------- */
+  var IC={
+    agent:'<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#00C8FF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="7" width="16" height="12" rx="3"/><path d="M12 7V3M8 13h.01M16 13h.01"/></svg>',
+    plus:'<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#8661D4" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>',
+    check:'<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#0FC48A" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>',
+    sync:'<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#5A8FAA" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 1-15.5 6.2L3 16"/><path d="M3 12a9 9 0 0 1 15.5-6.2L21 8"/><path d="M3 21v-5h5M21 3v5h-5"/></svg>',
+    alert:'<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#E84848" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 3.9L1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/></svg>',
+    assign:'<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#00C8FF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.5"/><path d="M2 21v-1a7 7 0 0 1 14 0v1"/><path d="M18 8h4M20 6v4"/></svg>',
+    batch:'<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#8661D4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l9 5-9 5-9-5z"/><path d="M3 12l9 5 9-5"/><path d="M3 17l9 5 9-5"/></svg>',
+    qual:'<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#F0970A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/><circle cx="19" cy="6" r="3"/></svg>'
+  };
+  var events=[
+    ["agent","<b>Agent analysis complete</b> — Maria Chen <span>· Risk: 87</span>","2 min"],
+    ["plus","<b>Task created</b> — Cardiology follow-up <span>/ Maria Chen</span>","2 min"],
+    ["check","<b>Task completed</b> — Medication review <span>/ Robert Kim</span>","14 min"],
+    ["sync","<b>FHIR sync</b> — 847 patients updated","18 min"],
+    ["alert","<b>Alert</b> — Sandra Torres readmission risk spike","1 hr"],
+    ["assign","<b>Task assigned</b> — Social Worker SP <span>/ Dorothy Chen</span>","2 hr"],
+    ["batch","<b>Agent analysis</b> — 12 patients batch completed","3 hr"],
+    ["qual","<b>Quality alert</b> — Depression screening below threshold","4 hr"]
+  ];
+  document.getElementById("feed").innerHTML=events.map(function(e){
+    return '<div class="evt"><span class="evt-ic">'+IC[e[0]]+'</span>'
+      +'<span class="evt-tx">'+e[1]+'</span>'
+      +'<span class="evt-t">'+e[2]+' ago</span></div>';
+  }).join("");
+
+  /* ---------- deploy / batch buttons + toast ---------- */
+  var toast=document.getElementById("toast"),
+      toastMsg=document.getElementById("toastMsg"),
+      toastTimer=null;
+  var SPINNER='<svg class="spin" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-6.2-8.56"/></svg>';
+
+  function showToast(msg){
+    toastMsg.textContent=msg;
+    toast.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer=setTimeout(function(){toast.classList.remove("show");},3200);
+  }
+  function runWithSpinner(btn,label,msg){
+    if(btn.disabled)return;
+    var orig=btn.innerHTML;
+    btn.disabled=true;
+    btn.innerHTML=SPINNER+" "+label;
+    setTimeout(function(){
+      btn.disabled=false;
+      btn.innerHTML=orig;
+      showToast(msg);
+    },1200);
+  }
+  document.querySelectorAll(".deploy-btn").forEach(function(b){
+    b.addEventListener("click",function(){runWithSpinner(b,"Deploying…","23 analyses queued");});
+  });
+  document.getElementById("batchBtn").addEventListener("click",function(){
+    runWithSpinner(this,"Analyzing…","Batch analysis started · 847 patients");
+  });
+
+  /* keep hash links inert */
+  document.querySelectorAll('a[href="#"]').forEach(function(a){
+    a.addEventListener("click",function(e){e.preventDefault();});
+  });
+})();
+</script>

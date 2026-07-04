@@ -1,0 +1,689 @@
+<title>CareSync AI — SDOH Resources</title>
+<style>
+  :root {
+    --bg: #07111E;
+    --surface: #0C1829;
+    --surface-hover: #0F2038;
+    --surface-raised: #132842;
+    --border: #1A3450;
+    --border-light: #244A6A;
+    --cyan: #00C8FF;
+    --cyan-dim: rgba(0,200,255,0.10);
+    --red: #E84848;
+    --amber: #F0970A;
+    --violet: #8661D4;
+    --emerald: #0FC48A;
+    --text: #C8E6F5;
+    --text-muted: #5A8FAA;
+    --text-dim: #2C567A;
+    --font: -apple-system, 'SF Pro Text', 'Segoe UI', system-ui, sans-serif;
+    --mono: 'SF Mono', 'Menlo', monospace;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html, body { background: var(--bg); }
+
+  body {
+    font-family: var(--font);
+    font-size: 13px;
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 32px 16px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ============ PHONE SHELL ============ */
+  .phone {
+    width: 390px;
+    height: 844px;
+    background: var(--bg);
+    border-radius: 44px;
+    border: 1px solid var(--border);
+    box-shadow:
+      0 30px 80px rgba(0,0,0,0.6),
+      0 8px 24px rgba(0,0,0,0.4),
+      inset 0 0 24px rgba(0,0,0,0.45),
+      inset 0 1px 0 rgba(200,230,245,0.04);
+    overflow: hidden;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+  }
+
+  /* ============ STATUS BAR ============ */
+  .status-bar {
+    height: 50px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 28px 0 32px;
+    border-bottom: 1px solid rgba(26,52,80,0.35);
+  }
+  .status-time { color: #FFFFFF; font-size: 15px; font-weight: 600; letter-spacing: 0.2px; }
+  .status-icons { display: flex; align-items: center; gap: 7px; }
+  .status-icons svg { display: block; }
+
+  /* ============ NAV HEADER ============ */
+  .nav-header {
+    height: 56px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 16px;
+    position: relative;
+  }
+  .nav-back, .nav-filter {
+    width: 36px; height: 36px;
+    display: flex; align-items: center;
+  }
+  .nav-back { justify-content: flex-start; }
+  .nav-filter { justify-content: flex-end; }
+  .nav-title {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 17px;
+    font-weight: 700;
+    color: var(--text);
+    letter-spacing: -0.2px;
+  }
+
+  /* ============ PATIENT CONTEXT BANNER ============ */
+  .patient-banner {
+    height: 64px;
+    flex-shrink: 0;
+    background: var(--surface-raised);
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    padding: 9px 16px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 4px;
+  }
+  .pb-row1 { display: flex; align-items: center; gap: 8px; flex-wrap: nowrap; min-width: 0; }
+  .pb-name { font-size: 14px; font-weight: 700; letter-spacing: -0.2px; white-space: nowrap; flex-shrink: 0; }
+  .pb-pill {
+    font-size: 9.5px; font-weight: 700;
+    color: var(--red);
+    background: rgba(232,72,72,0.13);
+    border: 1px solid rgba(232,72,72,0.35);
+    padding: 2px 8px; border-radius: 20px;
+    white-space: nowrap;
+  }
+  .pb-fhir {
+    margin-left: auto;
+    font-family: var(--mono); font-size: 8.5px;
+    color: var(--text-dim);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+    flex-shrink: 1;
+  }
+  .pb-row2 { font-size: 10.5px; color: var(--text-muted); display: flex; align-items: center; gap: 5px; min-width: 0; white-space: nowrap; }
+  .pb-row2 svg { flex-shrink: 0; }
+  .pb-row2 .pb-fhir { font-size: 9px; }
+
+  /* ============ CATEGORY TABS ============ */
+  .cat-tabs {
+    flex-shrink: 0;
+    display: flex;
+    gap: 4px;
+    padding: 10px 16px 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+    border-bottom: 1px solid var(--border);
+  }
+  .cat-tabs::-webkit-scrollbar { display: none; }
+  .cat-tab {
+    flex-shrink: 0;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-muted);
+    padding: 6px 12px 10px;
+    border-bottom: 2px solid transparent;
+    white-space: nowrap;
+    cursor: pointer;
+  }
+  .cat-tab.active {
+    color: var(--cyan);
+    border-bottom-color: var(--cyan);
+  }
+
+  /* ============ RESOURCE LIST ============ */
+  .resource-list {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 12px 16px 210px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    scrollbar-width: none;
+  }
+  .resource-list::-webkit-scrollbar { display: none; }
+
+  .res-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 12px 13px 11px;
+  }
+  .res-top { display: flex; align-items: flex-start; gap: 8px; }
+  .res-name { font-size: 14px; font-weight: 700; letter-spacing: -0.2px; flex: 1; line-height: 1.3; }
+  .res-chip {
+    flex-shrink: 0;
+    font-size: 9px; font-weight: 700; letter-spacing: 0.3px;
+    color: var(--cyan);
+    background: var(--cyan-dim);
+    border: 1px solid rgba(0,200,255,0.3);
+    padding: 2px 8px; border-radius: 20px;
+    margin-top: 1px;
+  }
+  .res-meta {
+    display: flex; flex-wrap: wrap; align-items: center;
+    gap: 4px 10px;
+    margin-top: 7px;
+    font-size: 11px; color: var(--text-muted);
+  }
+  .res-meta .m { display: flex; align-items: center; gap: 4.5px; }
+  .res-meta svg { flex-shrink: 0; display: block; }
+  .res-meta .cov { color: var(--emerald); font-weight: 600; }
+  .res-actions { display: flex; gap: 8px; margin-top: 10px; }
+  .btn-refer {
+    flex: 1;
+    height: 34px;
+    background: var(--cyan);
+    color: #041018;
+    border: none; border-radius: 9px;
+    font-family: var(--font); font-size: 12px; font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 2px 10px rgba(0,200,255,0.22);
+  }
+  .btn-refer:active { filter: brightness(0.9); }
+  .btn-call {
+    flex-shrink: 0;
+    width: 62px; height: 34px;
+    background: transparent;
+    color: var(--cyan);
+    border: 1px solid rgba(0,200,255,0.4);
+    border-radius: 9px;
+    font-family: var(--font); font-size: 12px; font-weight: 700;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center; gap: 5px;
+  }
+  .res-fhir {
+    margin-top: 8px;
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text-dim);
+    display: flex; align-items: center; gap: 5px;
+  }
+  .res-fhir svg { flex-shrink: 0; }
+
+  /* ============ BOTTOM SHEET (peeking) ============ */
+  .bottom-sheet {
+    position: absolute;
+    left: 0; right: 0;
+    bottom: 84px;
+    height: 100px;
+    background: rgba(19,40,66,0.97);
+    border: 1px solid var(--border-light);
+    border-bottom: none;
+    border-radius: 18px 18px 0 0;
+    backdrop-filter: blur(10px);
+    z-index: 20;
+    padding: 8px 16px 0;
+    box-shadow: 0 -8px 30px rgba(0,0,0,0.45);
+  }
+  .sheet-grabber {
+    width: 36px; height: 4px;
+    background: var(--border-light);
+    border-radius: 2px;
+    margin: 0 auto 8px;
+  }
+  .sheet-header {
+    font-size: 12px; font-weight: 700;
+    display: flex; align-items: center; gap: 6px;
+    margin-bottom: 8px;
+  }
+  .sheet-header .count { color: var(--cyan); }
+  .sheet-chips { display: flex; gap: 7px; flex-wrap: wrap; }
+  .sheet-chip {
+    font-size: 10.5px; font-weight: 600;
+    padding: 4px 10px; border-radius: 20px;
+    display: flex; align-items: center; gap: 5px;
+  }
+  .sheet-chip.done {
+    color: var(--emerald);
+    background: rgba(15,196,138,0.12);
+    border: 1px solid rgba(15,196,138,0.32);
+  }
+  .sheet-chip.pending {
+    color: var(--amber);
+    background: rgba(240,151,10,0.12);
+    border: 1px solid rgba(240,151,10,0.32);
+  }
+  .sheet-chip .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+
+  /* ============ BOTTOM TAB BAR ============ */
+  .tab-bar {
+    position: absolute;
+    left: 0; right: 0; bottom: 0;
+    height: 84px;
+    background: rgba(12,24,41,0.97);
+    border-top: 1px solid var(--border);
+    backdrop-filter: blur(10px);
+    z-index: 30;
+    display: flex;
+    flex-direction: column;
+  }
+  .tab-items { height: 56px; display: flex; align-items: stretch; }
+  .tab-item {
+    flex: 1;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 3px; padding-top: 6px;
+  }
+  .tab-item span {
+    font-size: 10px; font-weight: 600;
+    color: var(--text-dim);
+    letter-spacing: 0.1px;
+  }
+  .tab-item.active span { color: var(--cyan); }
+  .tab-item svg { display: block; }
+  .tab-footer {
+    flex: 1;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px; color: var(--text-dim);
+    letter-spacing: 0.3px; font-weight: 500;
+  }
+
+  /* ============ FAB ============ */
+  .fab-wrap {
+    position: absolute;
+    right: 16px;
+    bottom: 198px;
+    z-index: 25;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+  }
+  .fab {
+    width: 52px; height: 52px;
+    border-radius: 50%;
+    background: var(--cyan);
+    border: none;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 6px 22px rgba(0,200,255,0.35), 0 3px 8px rgba(0,0,0,0.4);
+  }
+  .fab-label {
+    font-size: 9px; font-weight: 700;
+    color: var(--cyan);
+    letter-spacing: 0.3px;
+    text-shadow: 0 1px 4px rgba(7,17,30,0.9);
+  }
+
+  /* ============ TOAST ============ */
+  .toast {
+    position: absolute;
+    top: 118px;
+    left: 50%;
+    transform: translateX(-50%) translateY(-16px);
+    z-index: 50;
+    background: rgba(19,40,66,0.98);
+    border: 1px solid rgba(15,196,138,0.45);
+    border-radius: 12px;
+    padding: 10px 14px;
+    display: flex; align-items: center; gap: 9px;
+    box-shadow: 0 12px 34px rgba(0,0,0,0.55);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease, transform 0.3s ease;
+    white-space: nowrap;
+  }
+  .toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+  .toast-icon {
+    width: 22px; height: 22px; border-radius: 50%;
+    background: rgba(15,196,138,0.16);
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .toast-text { font-size: 12px; font-weight: 700; color: var(--text); }
+  .toast-sub { font-family: var(--mono); font-size: 9px; color: var(--text-dim); margin-top: 1px; }
+</style>
+
+<div class="phone">
+
+  <!-- STATUS BAR -->
+  <div class="status-bar">
+    <div class="status-time">9:41</div>
+    <div class="status-icons">
+      <svg width="18" height="12" viewBox="0 0 18 12" fill="none">
+        <rect x="0"  y="8" width="3" height="4"  rx="1" fill="#FFFFFF"/>
+        <rect x="5"  y="5.5" width="3" height="6.5" rx="1" fill="#FFFFFF"/>
+        <rect x="10" y="3" width="3" height="9"  rx="1" fill="#FFFFFF"/>
+        <rect x="15" y="0" width="3" height="12" rx="1" fill="#FFFFFF" opacity="0.35"/>
+      </svg>
+      <svg width="16" height="12" viewBox="0 0 16 12" fill="none">
+        <path d="M8 10.6 L9.8 8.4 A2.9 2.9 0 0 0 6.2 8.4 Z" fill="#FFFFFF"/>
+        <path d="M3.9 5.7 A6 6 0 0 1 12.1 5.7" stroke="#FFFFFF" stroke-width="1.5" stroke-linecap="round"/>
+        <path d="M1.2 3 A9.7 9.7 0 0 1 14.8 3" stroke="#FFFFFF" stroke-width="1.5" stroke-linecap="round"/>
+      </svg>
+      <svg width="25" height="12" viewBox="0 0 25 12" fill="none">
+        <rect x="0.5" y="0.5" width="21" height="11" rx="3" stroke="#FFFFFF" stroke-opacity="0.4"/>
+        <rect x="2" y="2" width="15" height="8" rx="1.6" fill="#FFFFFF"/>
+        <path d="M23 4 V8 A2.2 2.2 0 0 0 23 4 Z" fill="#FFFFFF" fill-opacity="0.4"/>
+      </svg>
+    </div>
+  </div>
+
+  <!-- NAV HEADER -->
+  <div class="nav-header">
+    <div class="nav-back">
+      <svg width="12" height="20" viewBox="0 0 12 20" fill="none">
+        <path d="M10.5 1.5 L2 10 L10.5 18.5" stroke="#00C8FF" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </div>
+    <div class="nav-title">SDOH Resources</div>
+    <div class="nav-filter">
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+        <path d="M3 5 H17 M5.5 10 H14.5 M8 15 H12" stroke="#C8E6F5" stroke-width="1.8" stroke-linecap="round"/>
+      </svg>
+    </div>
+  </div>
+
+  <!-- PATIENT CONTEXT BANNER -->
+  <div class="patient-banner">
+    <div class="pb-row1">
+      <span class="pb-name">Maria Chen &middot; 68F</span>
+      <span class="pb-pill">3 SDOH barriers identified</span>
+    </div>
+    <div class="pb-row2">
+      <svg width="11" height="11" viewBox="0 0 11 11" fill="none">
+        <circle cx="5.5" cy="5.5" r="4.6" stroke="#0FC48A" stroke-width="1.2"/>
+        <path d="M3.4 5.6 L4.9 7.1 L7.7 4.2" stroke="#0FC48A" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      AHC-HRSN screen completed today
+      <span class="pb-fhir">FHIR: QuestionnaireResponse/4829-AHC</span>
+    </div>
+  </div>
+
+  <!-- CATEGORY TABS -->
+  <div class="cat-tabs">
+    <div class="cat-tab">All</div>
+    <div class="cat-tab active">Transportation</div>
+    <div class="cat-tab">Food</div>
+    <div class="cat-tab">Housing</div>
+    <div class="cat-tab">Mental Health</div>
+    <div class="cat-tab">Utilities</div>
+  </div>
+
+  <!-- RESOURCE LIST -->
+  <div class="resource-list">
+
+    <!-- 1 -->
+    <div class="res-card">
+      <div class="res-top">
+        <div class="res-name">Metro Transit Assistance Program</div>
+        <div class="res-chip">TRANSPORTATION</div>
+      </div>
+      <div class="res-meta">
+        <span class="m">
+          <svg width="10" height="12" viewBox="0 0 10 12" fill="none"><path d="M5 1 C2.8 1 1.2 2.7 1.2 4.9 C1.2 7.8 5 11 5 11 C5 11 8.8 7.8 8.8 4.9 C8.8 2.7 7.2 1 5 1 Z" stroke="#5A8FAA" stroke-width="1.2"/><circle cx="5" cy="4.9" r="1.3" fill="#5A8FAA"/></svg>
+          0.8 mi
+        </span>
+        <span class="m cov">Free for Medicaid</span>
+        <span class="m">
+          <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><circle cx="5.5" cy="5.5" r="4.6" stroke="#5A8FAA" stroke-width="1.2"/><path d="M5.5 3 V5.5 L7.3 6.8" stroke="#5A8FAA" stroke-width="1.2" stroke-linecap="round"/></svg>
+          Mon-Fri 7am-7pm
+        </span>
+      </div>
+      <div class="res-actions">
+        <button class="btn-refer" id="refer1">Refer Patient</button>
+        <button class="btn-call">
+          <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M2.2 1.2 L3.9 1 L4.8 3.4 L3.6 4.4 C4.1 5.7 5.3 6.9 6.6 7.4 L7.6 6.2 L10 7.1 L9.8 8.8 C9.7 9.6 9 10.1 8.2 10 C4.5 9.4 1.6 6.5 1 2.8 C0.9 2 1.4 1.3 2.2 1.2 Z" stroke="#00C8FF" stroke-width="1.1" stroke-linejoin="round"/></svg>
+          Call
+        </button>
+      </div>
+      <div class="res-fhir">
+        <svg width="9" height="9" viewBox="0 0 9 9" fill="none"><path d="M3.6 5.4 L5.4 3.6 M2.7 6.3 L1.8 7.2 A1.6 1.6 0 0 0 4.05 9.45 L4.95 8.55 M6.3 2.7 L7.2 1.8 A1.6 1.6 0 0 0 4.95 -0.45 L4.05 0.45" stroke="#2C567A" stroke-width="1" stroke-linecap="round" transform="translate(0,0.5) scale(0.92)"/></svg>
+        FHIR: ServiceRequest created on refer
+      </div>
+    </div>
+
+    <!-- 2 -->
+    <div class="res-card">
+      <div class="res-top">
+        <div class="res-name">CityRide Medical Transport</div>
+        <div class="res-chip">TRANSPORTATION</div>
+      </div>
+      <div class="res-meta">
+        <span class="m">
+          <svg width="10" height="12" viewBox="0 0 10 12" fill="none"><path d="M5 1 C2.8 1 1.2 2.7 1.2 4.9 C1.2 7.8 5 11 5 11 C5 11 8.8 7.8 8.8 4.9 C8.8 2.7 7.2 1 5 1 Z" stroke="#5A8FAA" stroke-width="1.2"/><circle cx="5" cy="4.9" r="1.3" fill="#5A8FAA"/></svg>
+          1.2 mi
+        </span>
+        <span class="m cov">$0 copay with prior auth</span>
+        <span class="m">
+          <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><circle cx="5.5" cy="5.5" r="4.6" stroke="#5A8FAA" stroke-width="1.2"/><path d="M5.5 3 V5.5 L7.3 6.8" stroke="#5A8FAA" stroke-width="1.2" stroke-linecap="round"/></svg>
+          24/7
+        </span>
+      </div>
+      <div class="res-actions">
+        <button class="btn-refer">Refer Patient</button>
+        <button class="btn-call">
+          <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M2.2 1.2 L3.9 1 L4.8 3.4 L3.6 4.4 C4.1 5.7 5.3 6.9 6.6 7.4 L7.6 6.2 L10 7.1 L9.8 8.8 C9.7 9.6 9 10.1 8.2 10 C4.5 9.4 1.6 6.5 1 2.8 C0.9 2 1.4 1.3 2.2 1.2 Z" stroke="#00C8FF" stroke-width="1.1" stroke-linejoin="round"/></svg>
+          Call
+        </button>
+      </div>
+      <div class="res-fhir">
+        <svg width="9" height="9" viewBox="0 0 9 9" fill="none"><path d="M3.6 5.4 L5.4 3.6 M2.7 6.3 L1.8 7.2 A1.6 1.6 0 0 0 4.05 9.45 L4.95 8.55 M6.3 2.7 L7.2 1.8 A1.6 1.6 0 0 0 4.95 -0.45 L4.05 0.45" stroke="#2C567A" stroke-width="1" stroke-linecap="round" transform="translate(0,0.5) scale(0.92)"/></svg>
+        FHIR: ServiceRequest created on refer
+      </div>
+    </div>
+
+    <!-- 3 -->
+    <div class="res-card">
+      <div class="res-top">
+        <div class="res-name">Community Health Van Service</div>
+        <div class="res-chip">TRANSPORTATION</div>
+      </div>
+      <div class="res-meta">
+        <span class="m">
+          <svg width="10" height="12" viewBox="0 0 10 12" fill="none"><path d="M5 1 C2.8 1 1.2 2.7 1.2 4.9 C1.2 7.8 5 11 5 11 C5 11 8.8 7.8 8.8 4.9 C8.8 2.7 7.2 1 5 1 Z" stroke="#5A8FAA" stroke-width="1.2"/><circle cx="5" cy="4.9" r="1.3" fill="#5A8FAA"/></svg>
+          2.3 mi
+        </span>
+        <span class="m cov">Free &middot; No insurance required</span>
+        <span class="m">
+          <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><circle cx="5.5" cy="5.5" r="4.6" stroke="#5A8FAA" stroke-width="1.2"/><path d="M5.5 3 V5.5 L7.3 6.8" stroke="#5A8FAA" stroke-width="1.2" stroke-linecap="round"/></svg>
+          Mon-Wed-Fri
+        </span>
+      </div>
+      <div class="res-actions">
+        <button class="btn-refer">Refer Patient</button>
+        <button class="btn-call">
+          <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M2.2 1.2 L3.9 1 L4.8 3.4 L3.6 4.4 C4.1 5.7 5.3 6.9 6.6 7.4 L7.6 6.2 L10 7.1 L9.8 8.8 C9.7 9.6 9 10.1 8.2 10 C4.5 9.4 1.6 6.5 1 2.8 C0.9 2 1.4 1.3 2.2 1.2 Z" stroke="#00C8FF" stroke-width="1.1" stroke-linejoin="round"/></svg>
+          Call
+        </button>
+      </div>
+      <div class="res-fhir">
+        <svg width="9" height="9" viewBox="0 0 9 9" fill="none"><path d="M3.6 5.4 L5.4 3.6 M2.7 6.3 L1.8 7.2 A1.6 1.6 0 0 0 4.05 9.45 L4.95 8.55 M6.3 2.7 L7.2 1.8 A1.6 1.6 0 0 0 4.95 -0.45 L4.05 0.45" stroke="#2C567A" stroke-width="1" stroke-linecap="round" transform="translate(0,0.5) scale(0.92)"/></svg>
+        FHIR: ServiceRequest created on refer
+      </div>
+    </div>
+
+    <!-- 4 -->
+    <div class="res-card">
+      <div class="res-top">
+        <div class="res-name">Volunteer Driver Network</div>
+        <div class="res-chip">TRANSPORTATION</div>
+      </div>
+      <div class="res-meta">
+        <span class="m">
+          <svg width="10" height="12" viewBox="0 0 10 12" fill="none"><path d="M5 1 C2.8 1 1.2 2.7 1.2 4.9 C1.2 7.8 5 11 5 11 C5 11 8.8 7.8 8.8 4.9 C8.8 2.7 7.2 1 5 1 Z" stroke="#5A8FAA" stroke-width="1.2"/><circle cx="5" cy="4.9" r="1.3" fill="#5A8FAA"/></svg>
+          3.1 mi
+        </span>
+        <span class="m cov">Free &middot; 48h advance notice</span>
+        <span class="m">
+          <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><circle cx="5.5" cy="5.5" r="4.6" stroke="#5A8FAA" stroke-width="1.2"/><path d="M5.5 3 V5.5 L7.3 6.8" stroke="#5A8FAA" stroke-width="1.2" stroke-linecap="round"/></svg>
+          By appointment
+        </span>
+      </div>
+      <div class="res-actions">
+        <button class="btn-refer">Refer Patient</button>
+        <button class="btn-call">
+          <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M2.2 1.2 L3.9 1 L4.8 3.4 L3.6 4.4 C4.1 5.7 5.3 6.9 6.6 7.4 L7.6 6.2 L10 7.1 L9.8 8.8 C9.7 9.6 9 10.1 8.2 10 C4.5 9.4 1.6 6.5 1 2.8 C0.9 2 1.4 1.3 2.2 1.2 Z" stroke="#00C8FF" stroke-width="1.1" stroke-linejoin="round"/></svg>
+          Call
+        </button>
+      </div>
+      <div class="res-fhir">
+        <svg width="9" height="9" viewBox="0 0 9 9" fill="none"><path d="M3.6 5.4 L5.4 3.6 M2.7 6.3 L1.8 7.2 A1.6 1.6 0 0 0 4.05 9.45 L4.95 8.55 M6.3 2.7 L7.2 1.8 A1.6 1.6 0 0 0 4.95 -0.45 L4.05 0.45" stroke="#2C567A" stroke-width="1" stroke-linecap="round" transform="translate(0,0.5) scale(0.92)"/></svg>
+        FHIR: ServiceRequest created on refer
+      </div>
+    </div>
+
+    <!-- 5 -->
+    <div class="res-card">
+      <div class="res-top">
+        <div class="res-name">Uber Health (EHR-integrated)</div>
+        <div class="res-chip">TRANSPORTATION</div>
+      </div>
+      <div class="res-meta">
+        <span class="m">
+          <svg width="10" height="12" viewBox="0 0 10 12" fill="none"><path d="M5 1 C2.8 1 1.2 2.7 1.2 4.9 C1.2 7.8 5 11 5 11 C5 11 8.8 7.8 8.8 4.9 C8.8 2.7 7.2 1 5 1 Z" stroke="#5A8FAA" stroke-width="1.2"/><circle cx="5" cy="4.9" r="1.3" fill="#5A8FAA"/></svg>
+          On-demand
+        </span>
+        <span class="m cov">Billable to care management</span>
+        <span class="m">
+          <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><circle cx="5.5" cy="5.5" r="4.6" stroke="#5A8FAA" stroke-width="1.2"/><path d="M5.5 3 V5.5 L7.3 6.8" stroke="#5A8FAA" stroke-width="1.2" stroke-linecap="round"/></svg>
+          24/7
+        </span>
+      </div>
+      <div class="res-actions">
+        <button class="btn-refer">Connect</button>
+        <button class="btn-call">
+          <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><circle cx="5.5" cy="5.5" r="4.6" stroke="#00C8FF" stroke-width="1.1"/><path d="M5.5 5 V8" stroke="#00C8FF" stroke-width="1.2" stroke-linecap="round"/><circle cx="5.5" cy="3.2" r="0.8" fill="#00C8FF"/></svg>
+          Info
+        </button>
+      </div>
+      <div class="res-fhir">
+        <svg width="9" height="9" viewBox="0 0 9 9" fill="none"><path d="M3.6 5.4 L5.4 3.6 M2.7 6.3 L1.8 7.2 A1.6 1.6 0 0 0 4.05 9.45 L4.95 8.55 M6.3 2.7 L7.2 1.8 A1.6 1.6 0 0 0 4.95 -0.45 L4.05 0.45" stroke="#2C567A" stroke-width="1" stroke-linecap="round" transform="translate(0,0.5) scale(0.92)"/></svg>
+        FHIR: ServiceRequest created on refer
+      </div>
+    </div>
+
+  </div>
+
+  <!-- FAB -->
+  <div class="fab-wrap">
+    <button class="fab">
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+        <path d="M10 3.5 V16.5 M3.5 10 H16.5" stroke="#041018" stroke-width="2.4" stroke-linecap="round"/>
+      </svg>
+    </button>
+    <div class="fab-label">Add Resource</div>
+  </div>
+
+  <!-- BOTTOM SHEET -->
+  <div class="bottom-sheet">
+    <div class="sheet-grabber"></div>
+    <div class="sheet-header">Active Referrals <span class="count">(2)</span></div>
+    <div class="sheet-chips">
+      <div class="sheet-chip done"><span class="dot"></span>Food Bank — sent Jun 30</div>
+      <div class="sheet-chip pending"><span class="dot"></span>Therapy referral — pending</div>
+    </div>
+  </div>
+
+  <!-- BOTTOM TAB BAR -->
+  <div class="tab-bar">
+    <div class="tab-items">
+      <div class="tab-item">
+        <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+          <path d="M3 5.5 L4.7 7.2 L7.6 4.3" stroke="#2C567A" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M10.5 5.7 H19" stroke="#2C567A" stroke-width="1.7" stroke-linecap="round"/>
+          <path d="M3 12 L4.7 13.7 L7.6 10.8" stroke="#2C567A" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M10.5 12.2 H19" stroke="#2C567A" stroke-width="1.7" stroke-linecap="round"/>
+          <path d="M10.5 18.2 H19" stroke="#2C567A" stroke-width="1.7" stroke-linecap="round" opacity="0.5"/>
+        </svg>
+        <span>Tasks</span>
+      </div>
+      <div class="tab-item">
+        <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+          <circle cx="11" cy="7" r="3.6" stroke="#2C567A" stroke-width="1.7"/>
+          <path d="M3.8 19 C4.6 15 7.5 13.2 11 13.2 C14.5 13.2 17.4 15 18.2 19" stroke="#2C567A" stroke-width="1.7" stroke-linecap="round"/>
+        </svg>
+        <span>Patients</span>
+      </div>
+      <div class="tab-item active">
+        <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+          <path d="M11 2.6 C7.7 2.6 5.2 5.1 5.2 8.3 C5.2 12.7 11 19.4 11 19.4 C11 19.4 16.8 12.7 16.8 8.3 C16.8 5.1 14.3 2.6 11 2.6 Z" stroke="#00C8FF" stroke-width="1.7" stroke-linejoin="round"/>
+          <circle cx="11" cy="8.3" r="2.2" stroke="#00C8FF" stroke-width="1.7"/>
+        </svg>
+        <span>Resources</span>
+      </div>
+      <div class="tab-item">
+        <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+          <rect x="4" y="3" width="14" height="16" rx="2.2" stroke="#2C567A" stroke-width="1.7"/>
+          <path d="M7.5 7.5 H14.5 M7.5 11 H14.5 M7.5 14.5 H11.5" stroke="#2C567A" stroke-width="1.7" stroke-linecap="round"/>
+        </svg>
+        <span>Log</span>
+      </div>
+      <div class="tab-item">
+        <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+          <circle cx="11" cy="11" r="8.4" stroke="#2C567A" stroke-width="1.7"/>
+          <circle cx="11" cy="8.8" r="2.6" stroke="#2C567A" stroke-width="1.7"/>
+          <path d="M5.6 17.2 C6.5 14.7 8.5 13.6 11 13.6 C13.5 13.6 15.5 14.7 16.4 17.2" stroke="#2C567A" stroke-width="1.7" stroke-linecap="round"/>
+        </svg>
+        <span>Profile</span>
+      </div>
+    </div>
+    <div class="tab-footer">FHIR R4 · SMART on FHIR</div>
+  </div>
+
+  <!-- TOAST -->
+  <div class="toast" id="toast">
+    <div class="toast-icon">
+      <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+        <path d="M2 6.3 L4.7 9 L10 3.4" stroke="#0FC48A" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </div>
+    <div>
+      <div class="toast-text">Referral sent — Metro Transit Assistance</div>
+      <div class="toast-sub">FHIR: ServiceRequest/SR-2291 created</div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+(function () {
+  var toast = document.getElementById('toast');
+  var timer = null;
+
+  function showToast() {
+    toast.classList.add('show');
+    clearTimeout(timer);
+    timer = setTimeout(function () {
+      toast.classList.remove('show');
+    }, 3000);
+  }
+
+  // Auto-demo: simulate tapping [Refer Patient] on the first card after 2s
+  setTimeout(showToast, 2000);
+
+  document.getElementById('refer1').addEventListener('click', showToast);
+})();
+</script>

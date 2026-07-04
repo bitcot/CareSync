@@ -1,0 +1,806 @@
+<title>CareSync AI — Care Coordinator</title>
+<style>
+  :root{
+    --bg:#07111E;
+    --surface:#0C1829;
+    --surface-hover:#0F2038;
+    --surface-raised:#132842;
+    --border:#1A3450;
+    --border-light:#244A6A;
+
+    --cyan:#00C8FF;
+    --cyan-dim:rgba(0,200,255,0.10);
+    --cyan-glow:0 0 24px rgba(0,200,255,0.35);
+
+    --red:#E84848;
+    --red-dim:rgba(232,72,72,0.12);
+
+    --violet:#8661D4;
+    --violet-dim:rgba(134,97,212,0.12);
+
+    --emerald:#0FC48A;
+    --emerald-dim:rgba(15,196,138,0.12);
+
+    --amber:#F0970A;
+    --amber-dim:rgba(240,151,10,0.12);
+
+    --text:#C8E6F5;
+    --text-muted:#5A8FAA;
+    --text-dim:#2C567A;
+
+    --font:-apple-system,'SF Pro Text','Segoe UI',system-ui,sans-serif;
+    --mono:'SF Mono','Menlo','Courier New',monospace;
+    --card-radius:8px;
+    --pill-radius:20px;
+  }
+  *,*::before,*::after{box-sizing:border-box;}
+  body{
+    margin:0;height:100vh;overflow:hidden;
+    background:var(--bg);color:var(--text);
+    font-family:var(--font);font-size:13px;line-height:1.45;
+    -webkit-font-smoothing:antialiased;
+  }
+  ::-webkit-scrollbar{width:8px;height:8px;}
+  ::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px;}
+  ::-webkit-scrollbar-track{background:transparent;}
+
+  .app{display:flex;flex-direction:column;height:100vh;}
+
+  /* ===================== HEADER ===================== */
+  .hdr{
+    height:48px;flex:0 0 48px;display:flex;align-items:center;gap:16px;
+    padding:0 16px;background:var(--surface);border-bottom:1px solid var(--border);
+  }
+  .hdr-logo{display:flex;align-items:center;gap:9px;}
+  .hdr-logo svg{display:block;}
+  .hdr-name{font-size:15px;letter-spacing:0.2px;color:var(--text-muted);font-weight:500;}
+  .hdr-name b{color:var(--cyan);font-weight:700;}
+  .hdr-badges{display:flex;gap:8px;margin-left:12px;flex:1;}
+  .std-pill{
+    font-size:10px;letter-spacing:0.6px;text-transform:uppercase;
+    color:var(--text-muted);border:1px solid var(--border-light);
+    border-radius:var(--pill-radius);padding:3px 10px;background:var(--surface-raised);
+    white-space:nowrap;
+  }
+  .hdr-right{display:flex;align-items:center;gap:16px;}
+  .sync{font-size:11px;color:var(--text-dim);white-space:nowrap;}
+  .bell{position:relative;display:flex;align-items:center;cursor:pointer;}
+  .bell-badge{
+    position:absolute;top:-5px;right:-6px;background:var(--red);color:#fff;
+    font-size:9px;font-weight:700;min-width:14px;height:14px;border-radius:7px;
+    display:flex;align-items:center;justify-content:center;padding:0 3px;
+  }
+  .avatar{
+    width:28px;height:28px;border-radius:50%;background:var(--surface-raised);
+    border:1px solid var(--border-light);color:var(--cyan);
+    font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;
+  }
+
+  /* ===================== MAIN GRID ===================== */
+  .main{
+    flex:1;min-height:0;display:grid;
+    grid-template-columns:260px minmax(520px,1fr) 300px;
+  }
+  .panel{min-height:0;display:flex;flex-direction:column;}
+
+  /* ===================== LEFT: PATIENTS ===================== */
+  .left{background:var(--surface);border-right:1px solid var(--border);}
+  .left-head{
+    display:flex;align-items:center;gap:6px;padding:14px 14px 10px;
+  }
+  .left-head .t{font-weight:700;font-size:13px;}
+  .left-head .n{color:var(--text-dim);font-size:12px;flex:1;}
+  .search-wrap{padding:0 14px 12px;}
+  .search{
+    width:100%;background:var(--bg);border:1px solid var(--border);
+    border-radius:6px;color:var(--text);font-family:var(--font);font-size:12px;
+    padding:7px 10px;outline:none;
+  }
+  .search::placeholder{color:var(--text-dim);}
+  .search:focus{border-color:var(--border-light);}
+  .plist{flex:1;overflow-y:auto;min-height:0;}
+  .prow{
+    display:flex;align-items:center;gap:10px;padding:10px 14px 10px 11px;
+    border-left:3px solid transparent;cursor:pointer;
+  }
+  .prow:hover{background:var(--surface-hover);}
+  .prow.sel{background:var(--surface-raised);border-left-color:var(--cyan);}
+  .rdot{width:8px;height:8px;border-radius:50%;flex:0 0 8px;background:var(--dot);box-shadow:0 0 8px var(--dot);}
+  .pinfo{flex:1;min-width:0;}
+  .pname{font-size:12.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .pname span{color:var(--text-muted);font-weight:400;margin-left:5px;font-size:11.5px;}
+  .ptags{display:flex;gap:5px;margin-top:3px;flex-wrap:wrap;}
+  .ptag{
+    font-size:9.5px;color:var(--text-muted);background:var(--bg);
+    border:1px solid var(--border);border-radius:4px;padding:1px 5px;white-space:nowrap;
+  }
+  .pchev{color:var(--text-dim);font-size:14px;line-height:1;}
+
+  /* ===================== CENTER ===================== */
+  .center{background:var(--bg);min-width:0;}
+  .pt-bar{
+    height:44px;flex:0 0 44px;display:flex;align-items:center;gap:10px;
+    padding:0 16px;border-bottom:1px solid var(--border);background:var(--surface);
+  }
+  .pt-name{font-size:15px;font-weight:700;}
+  .pt-meta{color:var(--text-muted);font-size:13px;}
+  .pt-mrn{font-family:var(--mono);font-size:11px;color:var(--text-dim);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .run-btn{
+    display:flex;align-items:center;gap:8px;
+    background:var(--cyan-dim);border:1px solid var(--cyan);color:var(--cyan);
+    font-family:var(--font);font-size:12.5px;font-weight:700;letter-spacing:0.3px;
+    padding:7px 16px;border-radius:6px;cursor:pointer;
+    box-shadow:var(--cyan-glow);transition:background .15s;white-space:nowrap;
+  }
+  .run-btn:hover:not(:disabled){background:rgba(0,200,255,0.18);}
+  .run-btn:disabled{cursor:default;opacity:0.85;}
+  .spinner{
+    width:12px;height:12px;border-radius:50%;flex:0 0 12px;
+    border:2px solid rgba(0,200,255,0.25);border-top-color:var(--cyan);
+    animation:spin .7s linear infinite;
+  }
+  @keyframes spin{to{transform:rotate(360deg);}}
+
+  .canvas-wrap{position:relative;flex:0 0 340px;height:340px;border-bottom:1px solid var(--border);background:var(--bg);}
+  #agentGraph{display:block;width:100%;height:340px;}
+  .canvas-wrap::after{
+    content:'';position:absolute;inset:0;pointer-events:none;
+    background:repeating-linear-gradient(to bottom,rgba(200,230,245,0.035) 0 1px,transparent 1px 4px);
+  }
+
+  .feeds{
+    flex:1;min-height:0;display:grid;grid-template-columns:repeat(4,1fr);
+    gap:10px;padding:12px 14px;
+  }
+  .feed{
+    background:var(--surface);border:1px solid var(--border);
+    border-left:3px solid var(--ac);border-radius:var(--card-radius);
+    display:flex;flex-direction:column;min-height:0;overflow:hidden;
+  }
+  .feed-label{
+    flex:0 0 auto;font-size:9.5px;font-weight:700;letter-spacing:1px;
+    color:var(--ac);padding:8px 10px 4px;text-transform:uppercase;
+  }
+  .feed-text{
+    flex:1;min-height:0;overflow-y:auto;padding:0 10px 10px;
+    font-size:11.5px;line-height:1.55;color:var(--text-muted);
+  }
+  .feed-text.streaming{color:var(--text);}
+  .feed-text.streaming::after{content:'▌';color:var(--ac);animation:blink 0.9s steps(1) infinite;margin-left:2px;}
+  .feed-text.done{color:var(--text);}
+  @keyframes blink{50%{opacity:0;}}
+  .feed-idle{color:var(--text-dim);font-style:italic;}
+
+  /* ===================== RIGHT: TASKS ===================== */
+  .right{background:var(--surface);border-left:1px solid var(--border);}
+  .right-head{display:flex;align-items:center;gap:8px;padding:14px 14px 10px;}
+  .right-head .t{font-weight:700;font-size:13px;flex:1;}
+  .open-badge{
+    font-size:10px;font-weight:700;color:var(--cyan);background:var(--cyan-dim);
+    border:1px solid var(--cyan);border-radius:var(--pill-radius);padding:2px 9px;
+  }
+  .tasks{flex:1;overflow-y:auto;min-height:0;padding:0 12px;}
+  .task{
+    background:var(--surface-raised);border:1px solid var(--border);
+    border-radius:var(--card-radius);padding:10px 11px;margin-bottom:9px;
+    opacity:0.18;transform:translateY(6px);
+    transition:opacity .4s ease,transform .4s ease;
+  }
+  .task.on{opacity:1;transform:none;}
+  .task-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;}
+  .prio{
+    font-size:9px;font-weight:700;letter-spacing:0.8px;border-radius:var(--pill-radius);
+    padding:2px 8px;
+  }
+  .prio.crit{color:var(--red);background:var(--red-dim);border:1px solid var(--red);}
+  .prio.high{color:var(--amber);background:var(--amber-dim);border:1px solid var(--amber);}
+  .prio.med{color:var(--violet);background:var(--violet-dim);border:1px solid var(--violet);}
+  .due{font-size:10px;color:var(--text-muted);}
+  .task-title{font-size:13px;font-weight:700;margin-bottom:2px;}
+  .task-desc{font-size:11.5px;color:var(--text-muted);margin-bottom:7px;}
+  .task-foot{display:flex;align-items:center;justify-content:space-between;}
+  .rid{font-family:var(--mono);font-size:10.5px;color:var(--text-dim);}
+  .st-open{
+    font-size:9.5px;font-weight:600;color:var(--text-muted);
+    border:1px solid var(--border-light);border-radius:var(--pill-radius);padding:1px 8px;
+  }
+
+  .bundle{flex:0 0 auto;border-top:1px solid var(--border);padding:10px 14px 12px;}
+  .bundle-title{
+    font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;
+    color:var(--text-muted);margin-bottom:6px;
+  }
+  .b-row{cursor:pointer;user-select:none;}
+  .b-line{display:flex;align-items:center;gap:6px;padding:3px 0;font-size:11.5px;}
+  .b-chev{color:var(--text-dim);font-size:9px;width:10px;transition:transform .15s;display:inline-block;}
+  .b-row.open .b-chev{transform:rotate(90deg);}
+  .b-name{color:var(--text);}
+  .b-count{color:var(--text-dim);font-family:var(--mono);font-size:10.5px;}
+  .b-kids{display:none;padding:1px 0 3px 22px;}
+  .b-row.open .b-kids{display:block;}
+  .b-kid{font-family:var(--mono);font-size:10px;color:var(--text-dim);padding:1px 0;}
+</style>
+
+<div class="app">
+
+  <!-- ============ HEADER ============ -->
+  <div class="hdr">
+    <div class="hdr-logo">
+      <svg width="26" height="18" viewBox="0 0 26 18" fill="none">
+        <path d="M1 9h5l2.5-6 4 12 3-8 1.5 2H25" stroke="#00C8FF" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <span class="hdr-name">CareSync<b> AI</b></span>
+    </div>
+    <div class="hdr-badges">
+      <span class="std-pill">FHIR R4</span>
+      <span class="std-pill">SMART on FHIR</span>
+      <span class="std-pill">CDS Hooks</span>
+    </div>
+    <div class="hdr-right">
+      <span class="sync">Last synced 2s ago •</span>
+      <span class="bell">
+        <svg width="16" height="17" viewBox="0 0 16 17" fill="none">
+          <path d="M8 1.5a4.5 4.5 0 0 0-4.5 4.5v3L2 12h12l-1.5-3V6A4.5 4.5 0 0 0 8 1.5Z" stroke="#5A8FAA" stroke-width="1.3" stroke-linejoin="round"/>
+          <path d="M6.5 14.5a1.5 1.5 0 0 0 3 0" stroke="#5A8FAA" stroke-width="1.3" stroke-linecap="round"/>
+        </svg>
+        <span class="bell-badge">3</span>
+      </span>
+      <span class="avatar">JC</span>
+    </div>
+  </div>
+
+  <div class="main">
+
+    <!-- ============ LEFT PANEL ============ -->
+    <div class="panel left">
+      <div class="left-head">
+        <span class="t">My Patients</span>
+        <span class="n">(142)</span>
+        <svg width="14" height="13" viewBox="0 0 14 13" fill="none">
+          <path d="M1 1.5h12L8.5 7v4.2L5.5 12V7L1 1.5Z" stroke="#5A8FAA" stroke-width="1.2" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <div class="search-wrap">
+        <input class="search" type="text" placeholder="Search patients…" aria-label="Search patients">
+      </div>
+      <div class="plist">
+        <div class="prow sel" style="--dot:var(--red)">
+          <span class="rdot"></span>
+          <div class="pinfo">
+            <div class="pname">Maria Chen<span>68F</span></div>
+            <div class="ptags"><span class="ptag">CHF</span><span class="ptag">Diabetes</span></div>
+          </div>
+          <span class="pchev">›</span>
+        </div>
+        <div class="prow" style="--dot:var(--amber)">
+          <span class="rdot"></span>
+          <div class="pinfo">
+            <div class="pname">Robert Kim<span>72M</span></div>
+            <div class="ptags"><span class="ptag">COPD</span><span class="ptag">HTN</span></div>
+          </div>
+          <span class="pchev">›</span>
+        </div>
+        <div class="prow" style="--dot:var(--amber)">
+          <span class="rdot"></span>
+          <div class="pinfo">
+            <div class="pname">Sandra Torres<span>55F</span></div>
+            <div class="ptags"><span class="ptag">Diabetes</span><span class="ptag">CKD</span></div>
+          </div>
+          <span class="pchev">›</span>
+        </div>
+        <div class="prow" style="--dot:var(--violet)">
+          <span class="rdot"></span>
+          <div class="pinfo">
+            <div class="pname">David Park<span>81M</span></div>
+            <div class="ptags"><span class="ptag">A-Fib</span></div>
+          </div>
+          <span class="pchev">›</span>
+        </div>
+        <div class="prow" style="--dot:var(--violet)">
+          <span class="rdot"></span>
+          <div class="pinfo">
+            <div class="pname">Lisa Wang<span>63F</span></div>
+            <div class="ptags"><span class="ptag">Post-surgical</span></div>
+          </div>
+          <span class="pchev">›</span>
+        </div>
+        <div class="prow" style="--dot:var(--emerald)">
+          <span class="rdot"></span>
+          <div class="pinfo">
+            <div class="pname">James Hill<span>77M</span></div>
+            <div class="ptags"><span class="ptag">HTN</span></div>
+          </div>
+          <span class="pchev">›</span>
+        </div>
+        <div class="prow" style="--dot:var(--emerald)">
+          <span class="rdot"></span>
+          <div class="pinfo">
+            <div class="pname">Carol Adams<span>69F</span></div>
+            <div class="ptags"><span class="ptag">Diabetes</span></div>
+          </div>
+          <span class="pchev">›</span>
+        </div>
+        <div class="prow" style="--dot:var(--emerald)">
+          <span class="rdot"></span>
+          <div class="pinfo">
+            <div class="pname">Michael Brown<span>84M</span></div>
+            <div class="ptags"><span class="ptag">CHF (stable)</span></div>
+          </div>
+          <span class="pchev">›</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ CENTER PANEL ============ -->
+    <div class="panel center">
+      <div class="pt-bar">
+        <span class="pt-name">Maria Chen</span>
+        <span class="pt-meta">68F</span>
+        <span class="pt-mrn">| MRN: 4829-FHIR</span>
+        <button class="run-btn" id="runBtn">
+          <svg width="10" height="12" viewBox="0 0 10 12" fill="none" id="runIcon">
+            <path d="M1 1.2v9.6L9 6 1 1.2Z" fill="#00C8FF"/>
+          </svg>
+          <span id="runLabel">Run Analysis</span>
+        </button>
+      </div>
+
+      <div class="canvas-wrap">
+        <canvas id="agentGraph"></canvas>
+      </div>
+
+      <div class="feeds">
+        <div class="feed" style="--ac:var(--red)">
+          <div class="feed-label">Risk Agent</div>
+          <div class="feed-text" id="feed0"><span class="feed-idle">Awaiting analysis run…</span></div>
+        </div>
+        <div class="feed" style="--ac:var(--violet)">
+          <div class="feed-label">Care Gap</div>
+          <div class="feed-text" id="feed1"><span class="feed-idle">Awaiting analysis run…</span></div>
+        </div>
+        <div class="feed" style="--ac:var(--emerald)">
+          <div class="feed-label">SDOH</div>
+          <div class="feed-text" id="feed2"><span class="feed-idle">Awaiting analysis run…</span></div>
+        </div>
+        <div class="feed" style="--ac:var(--amber)">
+          <div class="feed-label">Action Planner</div>
+          <div class="feed-text" id="feed3"><span class="feed-idle">Awaiting analysis run…</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ RIGHT PANEL ============ -->
+    <div class="panel right">
+      <div class="right-head">
+        <span class="t">Tasks</span>
+        <span class="open-badge">5 open</span>
+      </div>
+      <div class="tasks" id="tasks">
+        <div class="task">
+          <div class="task-top"><span class="prio crit">CRITICAL</span><span class="due">Due: Today</span></div>
+          <div class="task-title">Cardiology follow-up</div>
+          <div class="task-desc">Schedule within 72h — BNP elevation</div>
+          <div class="task-foot"><span class="rid">Task/4829-CARD</span><span class="st-open">Open</span></div>
+        </div>
+        <div class="task">
+          <div class="task-top"><span class="prio high">HIGH</span><span class="due">Due: Today</span></div>
+          <div class="task-title">Medication reconciliation</div>
+          <div class="task-desc">Furosemide dose vs eGFR 52</div>
+          <div class="task-foot"><span class="rid">Task/4829-MED</span><span class="st-open">Open</span></div>
+        </div>
+        <div class="task">
+          <div class="task-top"><span class="prio high">HIGH</span><span class="due">Due: Tomorrow</span></div>
+          <div class="task-title">Transportation arrangement</div>
+          <div class="task-desc">Patient reported access barrier</div>
+          <div class="task-foot"><span class="rid">Task/4829-TRN</span><span class="st-open">Open</span></div>
+        </div>
+        <div class="task">
+          <div class="task-top"><span class="prio med">MEDIUM</span><span class="due">Due: Fri</span></div>
+          <div class="task-title">Food assistance referral</div>
+          <div class="task-desc">AHC-HRSN positive</div>
+          <div class="task-foot"><span class="rid">Task/4829-FOOD</span><span class="st-open">Open</span></div>
+        </div>
+        <div class="task">
+          <div class="task-top"><span class="prio med">MEDIUM</span><span class="due">Due: Fri</span></div>
+          <div class="task-title">PHQ-9 follow-up call</div>
+          <div class="task-desc">Depression screen overdue 6 weeks</div>
+          <div class="task-foot"><span class="rid">Task/4829-DEP</span><span class="st-open">Open</span></div>
+        </div>
+      </div>
+
+      <div class="bundle">
+        <div class="bundle-title">FHIR Bundle</div>
+        <div class="b-row">
+          <div class="b-line"><span class="b-chev">▶</span><span class="b-name">Patient</span><span class="b-count">(1)</span></div>
+          <div class="b-kids"><div class="b-kid">Patient/4829-FHIR</div></div>
+        </div>
+        <div class="b-row">
+          <div class="b-line"><span class="b-chev">▶</span><span class="b-name">Condition</span><span class="b-count">(3)</span></div>
+          <div class="b-kids">
+            <div class="b-kid">Condition/4829-chf</div>
+            <div class="b-kid">Condition/4829-dm2</div>
+            <div class="b-kid">Condition/4829-ckd</div>
+          </div>
+        </div>
+        <div class="b-row">
+          <div class="b-line"><span class="b-chev">▶</span><span class="b-name">MedicationRequest</span><span class="b-count">(4)</span></div>
+          <div class="b-kids">
+            <div class="b-kid">MedicationRequest/4829-furosemide</div>
+            <div class="b-kid">MedicationRequest/4829-metformin</div>
+            <div class="b-kid">MedicationRequest/4829-lisinopril</div>
+            <div class="b-kid">MedicationRequest/4829-carvedilol</div>
+          </div>
+        </div>
+        <div class="b-row">
+          <div class="b-line"><span class="b-chev">▶</span><span class="b-name">Observation</span><span class="b-count">(12)</span></div>
+          <div class="b-kids">
+            <div class="b-kid">Observation/4829-bnp</div>
+            <div class="b-kid">Observation/4829-egfr</div>
+            <div class="b-kid">Observation/4829-hba1c … +9</div>
+          </div>
+        </div>
+        <div class="b-row">
+          <div class="b-line"><span class="b-chev">▶</span><span class="b-name">CarePlan</span><span class="b-count">(1)</span></div>
+          <div class="b-kids"><div class="b-kid">CarePlan/4829-chf-mgmt</div></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+(function(){
+  'use strict';
+
+  /* ---------- FHIR bundle expand/collapse ---------- */
+  document.querySelectorAll('.b-row').forEach(function(row){
+    row.addEventListener('click', function(){ row.classList.toggle('open'); });
+  });
+
+  /* ---------- Canvas setup ---------- */
+  var canvas = document.getElementById('agentGraph');
+  var ctx = canvas.getContext('2d');
+  var W = 0, H = 0;
+
+  function resize(){
+    var dpr = window.devicePixelRatio || 1;
+    W = canvas.clientWidth; H = canvas.clientHeight;
+    canvas.width = Math.round(W * dpr);
+    canvas.height = Math.round(H * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  var COL = {
+    cyan:'#00C8FF', red:'#E84848', violet:'#8661D4',
+    emerald:'#0FC48A', amber:'#F0970A',
+    bg:'#07111E', inner:'#0C1829', textMuted:'#5A8FAA', text:'#C8E6F5'
+  };
+
+  var AGENTS = [
+    { name:'Risk Agent',     color:COL.red,     dx:0,    dy:-130, label:'above' },
+    { name:'Care Gap',       color:COL.violet,  dx:160,  dy:0,    label:'right' },
+    { name:'SDOH',           color:COL.emerald, dx:0,    dy:130,  label:'below' },
+    { name:'Action Planner', color:COL.amber,   dx:-160, dy:0,    label:'left'  }
+  ];
+  var OR = 36, AR = 26;
+
+  /* ---------- State machine ---------- */
+  var runStart = null;   // performance.now() at click, or null when never run
+  var running = false;
+
+  function getState(now){
+    if (runStart === null) return { name:'IDLE', t:0 };
+    var el = (now - runStart) / 1000;
+    if (el < 2)    return { name:'INIT',         t: el / 2 };
+    if (el < 3)    return { name:'DISPATCH',     t: el - 2 };
+    if (el < 9)    return { name:'ANALYZING',    t: (el - 3) / 6 };
+    if (el < 10.5) return { name:'SYNTHESIZING', t: (el - 9) / 1.5 };
+    return { name:'COMPLETE', t: el - 10.5 };
+  }
+
+  function hexToRgba(hex, a){
+    var r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
+    return 'rgba(' + r + ',' + g + ',' + b + ',' + a + ')';
+  }
+
+  function bez(p0, c, p1, t){
+    var u = 1 - t;
+    return {
+      x: u*u*p0.x + 2*u*t*c.x + t*t*p1.x,
+      y: u*u*p0.y + 2*u*t*c.y + t*t*p1.y
+    };
+  }
+
+  function edgeGeom(cx, cy, ag){
+    var p0 = { x:cx, y:cy };
+    var p1 = { x:cx + ag.dx, y:cy + ag.dy };
+    var mx = (p0.x + p1.x)/2, my = (p0.y + p1.y)/2;
+    var vx = p1.x - p0.x, vy = p1.y - p0.y;
+    var len = Math.sqrt(vx*vx + vy*vy) || 1;
+    var c = { x: mx + (-vy/len)*38, y: my + (vx/len)*38 };
+    return { p0:p0, c:c, p1:p1 };
+  }
+
+  function circle(x, y, r){
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI*2);
+  }
+
+  function drawNode(x, y, r, color, opts){
+    opts = opts || {};
+    var alpha = opts.alpha != null ? opts.alpha : 1;
+    var scale = opts.scale || 1;
+    var R = r * scale;
+
+    if (opts.glow){
+      ctx.save();
+      ctx.shadowColor = color;
+      ctx.shadowBlur = 26;
+      ctx.globalAlpha = alpha;
+      ctx.fillStyle = color;
+      circle(x, y, R); ctx.fill();
+      ctx.restore();
+    } else {
+      ctx.globalAlpha = alpha;
+      ctx.fillStyle = color;
+      circle(x, y, R); ctx.fill();
+    }
+    // inner darker circle
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = COL.inner;
+    circle(x, y, R * 0.66); ctx.fill();
+    // small colored core
+    ctx.fillStyle = hexToRgba(color, opts.glow ? 0.95 : 0.45 * alpha + 0.15);
+    circle(x, y, R * 0.24); ctx.fill();
+
+    // completion ring
+    if (opts.ring > 0){
+      ctx.globalAlpha = Math.min(1, opts.ring);
+      ctx.strokeStyle = COL.emerald;
+      ctx.lineWidth = 1.6;
+      circle(x, y, R + 7); ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  function label(txt, x, y, align, color, size){
+    ctx.font = (size || 11) + 'px -apple-system, "SF Pro Text", "Segoe UI", system-ui, sans-serif';
+    ctx.textAlign = align;
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = color;
+    ctx.fillText(txt, x, y);
+  }
+
+  function draw(now){
+    var st = getState(now);
+    var t = now / 1000;
+    ctx.clearRect(0, 0, W, H);
+
+    var cx = W / 2, cy = H / 2;
+
+    /* --- radar rings (always on, very faint) --- */
+    for (var k = 0; k < 3; k++){
+      var rr = ((t * 22) + k * 40) % 120;
+      var ra = 0.05 * (1 - rr / 120);
+      if (ra > 0.002){
+        ctx.strokeStyle = hexToRgba(COL.cyan, ra);
+        ctx.lineWidth = 1;
+        circle(cx, cy, OR + rr); ctx.stroke();
+      }
+    }
+
+    var edgesActive = (st.name === 'DISPATCH' || st.name === 'ANALYZING' || st.name === 'SYNTHESIZING');
+    var agentsActive = (st.name === 'ANALYZING' || st.name === 'SYNTHESIZING' || st.name === 'COMPLETE');
+
+    /* --- edges --- */
+    AGENTS.forEach(function(ag, i){
+      var g = edgeGeom(cx, cy, ag);
+      ctx.beginPath();
+      ctx.moveTo(g.p0.x, g.p0.y);
+      ctx.quadraticCurveTo(g.c.x, g.c.y, g.p1.x, g.p1.y);
+      if (edgesActive){
+        ctx.save();
+        ctx.shadowColor = ag.color;
+        ctx.shadowBlur = 10;
+        ctx.strokeStyle = hexToRgba(ag.color, 0.55);
+        ctx.lineWidth = 1.6;
+        ctx.stroke();
+        ctx.restore();
+      } else {
+        ctx.strokeStyle = hexToRgba('#244A6A', st.name === 'COMPLETE' ? 0.55 : 0.4);
+        ctx.lineWidth = 1.2;
+        ctx.stroke();
+      }
+
+      /* --- particles --- */
+      var pts = [];
+      if (st.name === 'DISPATCH'){
+        pts.push(Math.min(1, st.t));                       // outbound burst
+        if (st.t > 0.25) pts.push(Math.min(1, st.t - 0.25));
+      } else if (st.name === 'ANALYZING'){
+        pts.push(0.5 + 0.5 * Math.sin(t * 2.4 + i * 1.7));  // oscillate
+        pts.push(0.5 + 0.5 * Math.sin(t * 2.4 + i * 1.7 + Math.PI));
+      } else if (st.name === 'SYNTHESIZING'){
+        pts.push(Math.max(0, 1 - st.t));                    // converge home
+        if (st.t > 0.2) pts.push(Math.max(0, 1 - (st.t - 0.2)));
+      }
+      pts.forEach(function(pt){
+        var p = bez(g.p0, g.c, g.p1, pt);
+        ctx.save();
+        ctx.shadowColor = ag.color;
+        ctx.shadowBlur = 12;
+        ctx.fillStyle = '#FFFFFF';
+        circle(p.x, p.y, 2.6); ctx.fill();
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = hexToRgba(ag.color, 0.9);
+        circle(p.x, p.y, 1.4); ctx.fill();
+        ctx.restore();
+      });
+    });
+
+    /* --- completion ring alpha --- */
+    var ringA = 0;
+    if (st.name === 'COMPLETE') ringA = Math.min(1, st.t / 0.5);
+
+    /* --- agent nodes --- */
+    AGENTS.forEach(function(ag, i){
+      var x = cx + ag.dx, y = cy + ag.dy;
+      var scale = 1;
+      var alpha = 0.4, glow = false;
+      if (st.name === 'DISPATCH'){ alpha = 0.65; }
+      if (agentsActive){
+        alpha = 1; glow = (st.name !== 'COMPLETE');
+        if (st.name === 'ANALYZING'){
+          scale = 1 + 0.06 * Math.sin(t * (3.2 + i * 0.55) + i * 1.3); // per-agent phase+freq
+        }
+      }
+      drawNode(x, y, AR, ag.color, { alpha:alpha, scale:scale, glow:glow, ring:ringA });
+
+      var lc = agentsActive ? COL.text : COL.textMuted;
+      if (ag.label === 'above')  label(ag.name, x, y - AR - 14, 'center', lc);
+      if (ag.label === 'below')  label(ag.name, x, y + AR + 14, 'center', lc);
+      if (ag.label === 'right')  label(ag.name, x + AR + 10, y, 'left', lc);
+      if (ag.label === 'left')   label(ag.name, x - AR - 10, y, 'right', lc);
+    });
+
+    /* --- orchestrator node --- */
+    var oScale = 1 + 0.035 * Math.sin(t * 1.6);           // idle breathing
+    var oGlow = false;
+    if (st.name === 'INIT'){
+      oScale = 1 + 0.09 * Math.sin(t * 7);                 // strong pulse
+      oGlow = true;
+    } else if (st.name === 'DISPATCH' || st.name === 'SYNTHESIZING'){
+      oScale = 1 + 0.05 * Math.sin(t * 5);
+      oGlow = true;
+    } else if (st.name === 'ANALYZING'){
+      oScale = 1 + 0.03 * Math.sin(t * 2.2);
+      oGlow = true;
+    } else if (st.name === 'COMPLETE'){
+      var ct = st.t;
+      if (ct < 0.8){
+        oScale = 1 + 0.18 * (1 - ct / 0.8) * Math.abs(Math.sin(ct * 6)); // large settle pulse
+        oGlow = true;
+      } else {
+        oScale = 1 + 0.02 * Math.sin(t * 1.4);
+      }
+    }
+    drawNode(cx, cy, OR, COL.cyan, { alpha:1, scale:oScale, glow:oGlow, ring:ringA });
+    label('Orchestrator', cx, cy + OR + 18, 'center', COL.text, 11.5);
+
+    /* --- INIT floating text --- */
+    if (st.name === 'INIT'){
+      var fa = st.t < 0.15 ? st.t / 0.15 : (st.t > 0.85 ? (1 - st.t) / 0.15 : 1);
+      ctx.globalAlpha = Math.max(0, Math.min(1, fa));
+      label('Analyzing patient…', cx, cy - OR - 22 - st.t * 8, 'center', COL.cyan, 12);
+      ctx.globalAlpha = 1;
+    }
+
+    /* --- COMPLETE checkmark hint --- */
+    if (st.name === 'COMPLETE' && st.t > 0.5){
+      ctx.globalAlpha = Math.min(1, (st.t - 0.5) / 0.5);
+      label('✓ Analysis complete — 5 FHIR Tasks created', cx, H - 14, 'center', COL.emerald, 11);
+      ctx.globalAlpha = 1;
+    }
+
+    requestAnimationFrame(draw);
+  }
+  requestAnimationFrame(draw);
+
+  /* ---------- Agent feed streaming ---------- */
+  var FEED_TEXT = [
+    "Analyzing vitals and lab trends... BNP 340 pg/mL — 2.8× upper limit. eGFR 52: renal impairment, dose adjustment flagged. 30-day readmission probability: 87%. Flagging patient as HIGH RISK.",
+    "Mapping active orders against CarePlan... Cardiology follow-up: OVERDUE (last visit 4 months). HbA1c check: due in 2 days. PHQ-9 depression screen: overdue by 6 weeks. 3 gaps identified.",
+    "Running AHC-HRSN screen via FHIR SDC... Transportation barrier: POSITIVE. Food insecurity: POSITIVE (2 of 3 items). Social isolation risk: present — lives alone, widowed. Referrals indicated.",
+    "Synthesizing 3-agent output... Priority 1: Cardiology ≤72h (BNP risk). Priority 2: Furosemide dose review (eGFR 52). Priority 3: Transport coordination. Priority 4: Food bank referral. Creating 5 FHIR Tasks..."
+  ];
+  var timers = [];
+
+  function clearTimers(){
+    timers.forEach(function(id){ clearTimeout(id); clearInterval(id); });
+    timers = [];
+  }
+
+  function streamInto(el, text){
+    el.classList.remove('done');
+    el.classList.add('streaming');
+    el.textContent = '';
+    var words = text.split(' ');
+    var i = 0;
+    var iv = setInterval(function(){
+      if (i >= words.length){
+        clearInterval(iv);
+        el.classList.remove('streaming');
+        el.classList.add('done');
+        return;
+      }
+      el.textContent += (i ? ' ' : '') + words[i++];
+      el.scrollTop = el.scrollHeight;
+    }, 72);
+    timers.push(iv);
+  }
+
+  /* ---------- Run button + orchestration ---------- */
+  var runBtn = document.getElementById('runBtn');
+  var runLabel = document.getElementById('runLabel');
+  var runIcon = document.getElementById('runIcon');
+  var taskEls = Array.prototype.slice.call(document.querySelectorAll('#tasks .task'));
+
+  function setButtonRunning(on){
+    if (on){
+      runBtn.disabled = true;
+      runIcon.style.display = 'none';
+      runLabel.textContent = 'Analyzing…';
+      var sp = document.createElement('span');
+      sp.className = 'spinner';
+      sp.id = 'runSpin';
+      runBtn.insertBefore(sp, runLabel);
+    } else {
+      runBtn.disabled = false;
+      var sp2 = document.getElementById('runSpin');
+      if (sp2) sp2.remove();
+      runIcon.style.display = '';
+      runLabel.textContent = 'Run Analysis';
+    }
+  }
+
+  runBtn.addEventListener('click', function(){
+    if (running) return;
+    running = true;
+    clearTimers();
+
+    // reset UI
+    taskEls.forEach(function(el){ el.classList.remove('on'); });
+    for (var f = 0; f < 4; f++){
+      var el = document.getElementById('feed' + f);
+      el.classList.remove('streaming', 'done');
+      el.innerHTML = '<span class="feed-idle">Queued…</span>';
+    }
+
+    runStart = performance.now();
+    setButtonRunning(true);
+
+    // feeds begin at ANALYZING (3s), staggered 0 / 800 / 1600 / 2400 ms
+    FEED_TEXT.forEach(function(text, idx){
+      timers.push(setTimeout(function(){
+        streamInto(document.getElementById('feed' + idx), text);
+      }, 3000 + idx * 800));
+    });
+
+    // tasks stagger-appear after COMPLETE (10.5s), 200ms apart
+    taskEls.forEach(function(el, idx){
+      timers.push(setTimeout(function(){
+        el.classList.add('on');
+      }, 10500 + idx * 200));
+    });
+
+    // button reverts at COMPLETE
+    timers.push(setTimeout(function(){
+      setButtonRunning(false);
+      running = false;
+    }, 10500));
+  });
+})();
+</script>

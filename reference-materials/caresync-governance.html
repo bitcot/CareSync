@@ -1,0 +1,630 @@
+<title>CareSync AI — AI Governance</title>
+<style>
+  :root{
+    --bg:#07111E; --surface:#0C1829; --surface-raised:#132842;
+    --border:#1A3450; --border-light:#244A6A;
+    --cyan:#00C8FF; --red:#E84848; --violet:#8661D4; --emerald:#0FC48A; --amber:#F0970A;
+    --text:#C8E6F5; --text-muted:#5A8FAA; --text-dim:#2C567A;
+    --mono:"SF Mono",Menlo,ui-monospace,monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    background:var(--bg); color:var(--text);
+    font-family:-apple-system,"SF Pro Text","Segoe UI",system-ui,sans-serif;
+    font-size:13px; line-height:1.45; overflow:hidden;
+    -webkit-font-smoothing:antialiased;
+  }
+  .app{height:100vh;display:flex;flex-direction:column}
+
+  /* ============ APP HEADER ============ */
+  .app-header{
+    height:48px;flex:0 0 48px;display:flex;align-items:center;gap:12px;
+    padding:0 16px;background:var(--surface);border-bottom:1px solid var(--border);
+  }
+  .logo{display:flex;align-items:center;gap:8px;font-weight:700;font-size:14px;letter-spacing:.2px}
+  .logo svg{display:block}
+  .logo .ai{color:var(--cyan)}
+  .env-tag{
+    font-family:var(--mono);font-size:10px;color:var(--text-muted);
+    border:1px solid var(--border-light);border-radius:4px;padding:2px 7px;letter-spacing:.4px;
+  }
+  .header-spacer{flex:1}
+  .header-search{
+    display:flex;align-items:center;gap:7px;width:260px;height:28px;padding:0 10px;
+    background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text-dim);font-size:12px;
+  }
+  .header-user{display:flex;align-items:center;gap:8px;color:var(--text-muted);font-size:12px}
+  .avatar{
+    width:26px;height:26px;border-radius:50%;background:var(--surface-raised);
+    border:1px solid var(--border-light);display:flex;align-items:center;justify-content:center;
+    font-size:10px;font-weight:700;color:var(--cyan);
+  }
+
+  .shell{flex:1;display:flex;min-height:0}
+
+  /* ============ NAV RAIL ============ */
+  .nav{
+    width:56px;flex:0 0 56px;background:var(--surface);border-right:1px solid var(--border);
+    display:flex;flex-direction:column;align-items:center;padding:10px 0;gap:4px;
+  }
+  .nav a{
+    width:38px;height:38px;border-radius:8px;display:flex;align-items:center;justify-content:center;
+    color:var(--text-dim);position:relative;transition:color .15s,background .15s;
+  }
+  .nav a:hover{color:var(--text-muted);background:var(--surface-raised)}
+  .nav a:focus-visible{outline:2px solid var(--cyan);outline-offset:1px}
+  .nav a.active{color:var(--cyan);background:rgba(0,200,255,.08)}
+  .nav a.active::before{
+    content:"";position:absolute;left:-9px;top:8px;bottom:8px;width:2px;border-radius:2px;background:var(--cyan);
+  }
+  .nav .push{flex:1}
+
+  /* ============ MAIN ============ */
+  .main{flex:1;display:flex;flex-direction:column;min-width:0;min-height:0}
+
+  /* Zone 1 — banner */
+  .banner{
+    height:64px;flex:0 0 64px;display:flex;align-items:center;gap:10px;
+    padding:0 20px;background:var(--surface-raised);border-bottom:1px solid var(--border);
+  }
+  .banner h1{font-size:18px;font-weight:700;letter-spacing:.1px;margin-right:auto}
+  .chip{
+    display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 11px;
+    border-radius:12px;font-size:11px;font-weight:600;white-space:nowrap;
+  }
+  .chip-cyan{color:var(--cyan);background:rgba(0,200,255,.10);border:1px solid rgba(0,200,255,.35)}
+  .chip-plain{color:var(--text-muted);border:1px solid var(--border-light);font-weight:500}
+  .chip-emerald{color:var(--emerald);background:rgba(15,196,138,.10);border:1px solid rgba(15,196,138,.35)}
+  .btn{
+    display:inline-flex;align-items:center;gap:7px;height:30px;padding:0 13px;cursor:pointer;
+    background:transparent;border:1px solid var(--border-light);border-radius:6px;
+    color:var(--text);font-size:12px;font-weight:600;font-family:inherit;
+    transition:border-color .15s,background .15s;
+  }
+  .btn:hover{border-color:var(--cyan);background:rgba(0,200,255,.06)}
+  .btn:focus-visible{outline:2px solid var(--cyan);outline-offset:1px}
+  .btn svg{flex:0 0 auto}
+
+  /* Zone 2 — metric tiles */
+  .metrics{
+    height:80px;flex:0 0 80px;display:grid;grid-template-columns:repeat(4,1fr);gap:12px;
+    padding:12px 20px 0;
+  }
+  .tile{
+    background:var(--surface);border:1px solid var(--border);border-radius:8px;
+    padding:9px 14px 8px;display:flex;flex-direction:column;justify-content:center;gap:1px;min-width:0;
+  }
+  .tile .label{font-size:10px;font-weight:600;letter-spacing:.7px;text-transform:uppercase;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .tile .value{font-size:22px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.15}
+  .tile .note{font-size:10px;color:var(--text-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .v-cyan{color:var(--cyan)} .v-amber{color:var(--amber)} .v-emerald{color:var(--emerald)}
+
+  /* Zone 3 — columns */
+  .cols{flex:1;display:flex;gap:12px;padding:12px 20px;min-height:0}
+  .col{
+    background:var(--surface);border:1px solid var(--border);border-radius:8px;
+    display:flex;flex-direction:column;min-width:0;min-height:0;
+  }
+  .col-a{flex:1.2} .col-b{flex:1} .col-c{flex:1}
+  .col-head{
+    flex:0 0 auto;padding:11px 14px 9px;border-bottom:1px solid var(--border);
+  }
+  .col-head .row{display:flex;align-items:center;gap:8px}
+  .col-head h2{font-size:13px;font-weight:700;letter-spacing:.2px}
+  .col-head .sub{font-size:11px;color:var(--text-muted);margin-top:2px}
+  .live{display:inline-flex;align-items:center;gap:6px;margin-left:auto;font-size:10px;font-weight:600;letter-spacing:.6px;text-transform:uppercase;color:var(--emerald)}
+  .dot{width:7px;height:7px;border-radius:50%;background:var(--emerald);animation:pulse 1.6s ease-in-out infinite}
+  @keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(15,196,138,.45);opacity:1}50%{box-shadow:0 0 0 5px rgba(15,196,138,0);opacity:.75}}
+
+  /* Column A — audit log */
+  .audit-list{flex:1;overflow-y:auto;min-height:0;padding:6px 8px;scrollbar-width:thin;scrollbar-color:var(--border-light) transparent}
+  .audit-list::-webkit-scrollbar{width:8px}
+  .audit-list::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
+  .entry{
+    padding:8px 8px 8px 11px;border-radius:6px;border-left:2px solid var(--border-light);
+    margin-bottom:4px;opacity:0;transform:translateY(6px);
+    animation:enter .38s ease forwards;
+  }
+  .entry:hover{background:var(--surface-raised)}
+  @keyframes enter{to{opacity:1;transform:none}}
+  .entry .l1{display:flex;align-items:baseline;gap:8px;min-width:0}
+  .entry .ts{font-family:var(--mono);font-size:10px;color:var(--text-dim);flex:0 0 auto}
+  .entry .patient{font-weight:700;font-size:12px;flex:0 0 auto}
+  .entry .agent{font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;flex:0 0 auto}
+  .entry .status{margin-left:auto;font-size:10px;font-weight:700;letter-spacing:.4px;flex:0 0 auto}
+  .entry .rec{font-size:12px;color:var(--text);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .entry .l3{display:flex;align-items:center;gap:8px;margin-top:3px;min-width:0}
+  .entry .fhir{font-family:var(--mono);font-size:11px;color:var(--text-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+  .conf{
+    flex:0 0 auto;font-family:var(--mono);font-size:10px;font-weight:700;
+    padding:1px 7px;border-radius:9px;border:1px solid;
+  }
+  .conf-hi{color:var(--emerald);border-color:rgba(15,196,138,.4);background:rgba(15,196,138,.08)}
+  .conf-mid{color:var(--amber);border-color:rgba(240,151,10,.4);background:rgba(240,151,10,.08)}
+  .conf-lo{color:var(--red);border-color:rgba(232,72,72,.4);background:rgba(232,72,72,.08)}
+  .ag-risk{color:var(--red)} .ag-gap{color:var(--violet)} .ag-sdoh{color:var(--emerald)} .ag-action{color:var(--amber)}
+  .st-actioned{color:var(--emerald)} .st-pending{color:var(--amber)} .st-dismissed{color:var(--text-dim)} .st-flagged{color:var(--red)}
+
+  /* Column B — model performance */
+  .col-body{flex:1;min-height:0;display:flex;flex-direction:column;padding:10px 14px 12px;gap:8px;overflow:hidden}
+  .sec-title{font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--text-muted)}
+  #confChart{width:100%;flex:1 1 30%;min-height:88px}
+  .acc-rows{display:flex;flex-direction:column;gap:7px}
+  .acc-row .top{display:flex;align-items:baseline;gap:6px}
+  .acc-row .name{font-size:11.5px;font-weight:700;flex:0 0 auto}
+  .acc-row .stats{font-size:10.5px;color:var(--text-muted);font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .acc-row .n{margin-left:auto;font-family:var(--mono);font-size:10px;color:var(--text-dim);flex:0 0 auto}
+  .bar{height:4px;border-radius:2px;background:var(--surface-raised);margin-top:4px;display:flex;gap:2px;overflow:hidden}
+  .bar span{height:100%;border-radius:2px}
+  .ver-table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+  .ver-table td{padding:4px 0;border-top:1px solid var(--border);font-size:11px;color:var(--text-muted)}
+  .ver-table td:first-child{font-family:var(--mono);font-size:11px;color:var(--text)}
+  .ver-table td:last-child{text-align:right}
+  .tag-cur{font-size:9px;font-weight:700;color:var(--cyan);border:1px solid rgba(0,200,255,.4);border-radius:8px;padding:0 6px;margin-left:5px;letter-spacing:.4px}
+  .pos{color:var(--emerald)} .dep{color:var(--text-dim)}
+
+  /* Column C — equity */
+  .parity-head{display:flex;align-items:baseline;gap:8px}
+  .parity-score{font-size:26px;font-weight:700;color:var(--emerald);font-variant-numeric:tabular-nums;line-height:1}
+  #radarChart{width:100%;flex:1 1 34%;min-height:130px}
+  .review-list{display:flex;flex-direction:column;gap:5px}
+  .review-item{display:flex;gap:8px;font-size:11px;line-height:1.4}
+  .flag{flex:0 0 auto;width:6px;height:6px;border-radius:50%;margin-top:5px}
+  .flag-red{background:var(--red)} .flag-amber{background:var(--amber)} .flag-dim{background:var(--text-dim)}
+  .review-item b{font-weight:700}
+  .review-item .fr{color:var(--red)} .review-item .fa{color:var(--amber)}
+  .review-item .muted{color:var(--text-muted)}
+  .attest{display:grid;grid-template-columns:1fr 1fr;gap:3px 12px}
+  .att{display:flex;align-items:center;gap:6px;font-size:10.5px;color:var(--text-muted);min-width:0}
+  .att svg{flex:0 0 auto}
+  .att .k{color:var(--text);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .att .s{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+  /* Zone 4 — bottom bar */
+  .footer{
+    height:48px;flex:0 0 48px;display:flex;align-items:center;gap:8px;
+    padding:0 20px;background:var(--surface);border-top:1px solid var(--border);
+  }
+  .footer .lead{font-size:11px;color:var(--text-muted);margin-right:2px;white-space:nowrap}
+  .fw-pill{
+    font-size:10px;font-weight:600;color:var(--text-muted);letter-spacing:.3px;
+    border:1px solid var(--border-light);border-radius:10px;padding:2px 9px;white-space:nowrap;
+    background:var(--surface-raised);
+  }
+  .footer .spacer{flex:1}
+
+  @media (prefers-reduced-motion:reduce){
+    .entry{animation:none;opacity:1;transform:none}
+    .dot{animation:none}
+    *{transition:none !important}
+  }
+</style>
+
+<div class="app">
+
+  <!-- App header -->
+  <header class="app-header">
+    <div class="logo">
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+        <path d="M10 1.5 3 4.5v5c0 4.2 3 7.6 7 9 4-1.4 7-4.8 7-9v-5l-7-3z" stroke="#00C8FF" stroke-width="1.5" fill="rgba(0,200,255,.10)"/>
+        <path d="M6.5 10h2l1.5-3 1.5 5 1-2h1" stroke="#00C8FF" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      CareSync&nbsp;<span class="ai">AI</span>
+    </div>
+    <span class="env-tag">FHIR R4 · SANDBOX</span>
+    <div class="header-spacer"></div>
+    <div class="header-search">
+      <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"><circle cx="5" cy="5" r="3.4" stroke="currentColor" stroke-width="1.3"/><path d="m8 8 2.6 2.6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+      Search patients, agents, resources…
+    </div>
+    <div class="header-user"><span class="avatar">DR</span> Dr. R. Okafor · CMIO</div>
+  </header>
+
+  <div class="shell">
+
+    <!-- Nav rail -->
+    <nav class="nav" aria-label="Primary">
+      <a href="#" title="Dashboard" aria-label="Dashboard">
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><rect x="2" y="2" width="6" height="6" rx="1.2" stroke="currentColor" stroke-width="1.4"/><rect x="10" y="2" width="6" height="6" rx="1.2" stroke="currentColor" stroke-width="1.4"/><rect x="2" y="10" width="6" height="6" rx="1.2" stroke="currentColor" stroke-width="1.4"/><rect x="10" y="10" width="6" height="6" rx="1.2" stroke="currentColor" stroke-width="1.4"/></svg>
+      </a>
+      <a href="#" title="Patients" aria-label="Patients">
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><circle cx="9" cy="6" r="3" stroke="currentColor" stroke-width="1.4"/><path d="M3.5 15.5c.6-3 2.9-4.5 5.5-4.5s4.9 1.5 5.5 4.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+      </a>
+      <a href="#" title="Agents" aria-label="Agents">
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><rect x="3.5" y="5.5" width="11" height="8.5" rx="2" stroke="currentColor" stroke-width="1.4"/><path d="M9 2.5v3M6.8 9.4h.01M11.2 9.4h.01" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="9" cy="2.5" r="1" fill="currentColor"/></svg>
+      </a>
+      <a href="#" title="Analytics" aria-label="Analytics">
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M3 15h12" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M4.5 12.5v-3M8 12.5V6M11.5 12.5V8.5M15 12.5V4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+      </a>
+      <a href="#" class="active" title="AI Governance" aria-label="AI Governance" aria-current="page">
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M9 1.5 2.5 4.2v4.6c0 3.9 2.7 7 6.5 8.2 3.8-1.2 6.5-4.3 6.5-8.2V4.2L9 1.5z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="m6.2 9 2 2 3.6-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </a>
+      <span class="push"></span>
+      <a href="#" title="Settings" aria-label="Settings">
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><circle cx="9" cy="9" r="2.4" stroke="currentColor" stroke-width="1.4"/><path d="M9 1.8v2M9 14.2v2M1.8 9h2M14.2 9h2M3.9 3.9l1.4 1.4M12.7 12.7l1.4 1.4M14.1 3.9l-1.4 1.4M5.3 12.7l-1.4 1.4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+      </a>
+    </nav>
+
+    <!-- Main content -->
+    <main class="main">
+
+      <!-- ZONE 1 -->
+      <div class="banner">
+        <h1>AI Governance Center</h1>
+        <span class="chip chip-cyan">
+          <svg width="11" height="11" viewBox="0 0 11 11" fill="none" aria-hidden="true"><rect x="1.5" y="1.5" width="8" height="8" rx="2" stroke="currentColor" stroke-width="1.2"/><circle cx="5.5" cy="5.5" r="1.4" fill="currentColor"/></svg>
+          Model: CareSync-v2.3.1
+        </span>
+        <span class="chip chip-plain">Last Evaluated: 6h ago</span>
+        <span class="chip chip-emerald">
+          <svg width="11" height="11" viewBox="0 0 11 11" fill="none" aria-hidden="true"><path d="M5.5 1 1.5 2.7v2.8c0 2.4 1.7 4.2 4 5 2.3-.8 4-2.6 4-5V2.7L5.5 1z" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round"/></svg>
+          Regulatory Posture: FHIR R4 · HIPAA · HL7 Compliant
+        </span>
+        <button class="btn" type="button">
+          <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true"><path d="M6.5 1.5v7M3.8 6l2.7 2.7L9.2 6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M2 11.5h9" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+          Download Audit Report
+        </button>
+      </div>
+
+      <!-- ZONE 2 -->
+      <div class="metrics">
+        <div class="tile">
+          <span class="label">Model Confidence (avg)</span>
+          <span class="value v-cyan">84.2%</span>
+        </div>
+        <div class="tile">
+          <span class="label">Analyses Run (30d)</span>
+          <span class="value">2,847</span>
+        </div>
+        <div class="tile">
+          <span class="label">Flagged for Review</span>
+          <span class="value v-amber">23</span>
+          <span class="note">Below 60% confidence — auto-flagged</span>
+        </div>
+        <div class="tile">
+          <span class="label">Demographic Parity Score</span>
+          <span class="value v-emerald">0.94</span>
+          <span class="note">1.0 = perfect parity</span>
+        </div>
+      </div>
+
+      <!-- ZONE 3 -->
+      <div class="cols">
+
+        <!-- COLUMN A -->
+        <section class="col col-a" aria-label="Recommendation Audit Trail">
+          <div class="col-head">
+            <div class="row">
+              <h2>Recommendation Audit Trail</h2>
+              <span class="live"><span class="dot"></span>Live Audit Log</span>
+            </div>
+            <div class="sub">Every AI output traced to source FHIR resources</div>
+          </div>
+          <div class="audit-list" id="auditList"></div>
+        </section>
+
+        <!-- COLUMN B -->
+        <section class="col col-b" aria-label="Model Performance">
+          <div class="col-head">
+            <div class="row"><h2>Model Performance</h2></div>
+            <div class="sub">Confidence Distribution (last 2,847 analyses)</div>
+          </div>
+          <div class="col-body">
+            <canvas id="confChart" aria-label="Bar chart of confidence score distribution across five bands"></canvas>
+
+            <div class="sec-title" style="margin-top:2px">Agent Accuracy by Type</div>
+            <div class="acc-rows">
+              <div class="acc-row">
+                <div class="top"><span class="name ag-risk">Risk Agent</span><span class="stats">Sensitivity 89% · Specificity 84%</span><span class="n">847 predictions</span></div>
+                <div class="bar"><span style="width:89%;background:var(--red);opacity:.85"></span><span style="width:8%;background:var(--red);opacity:.3"></span></div>
+              </div>
+              <div class="acc-row">
+                <div class="top"><span class="name ag-gap">Care Gap</span><span class="stats">Precision 93% · Recall 87%</span><span class="n">1,203 predictions</span></div>
+                <div class="bar"><span style="width:93%;background:var(--violet);opacity:.9"></span><span style="width:5%;background:var(--violet);opacity:.3"></span></div>
+              </div>
+              <div class="acc-row">
+                <div class="top"><span class="name ag-sdoh">SDOH Agent</span><span class="stats">Accuracy 91%</span><span class="n">623 predictions</span></div>
+                <div class="bar"><span style="width:91%;background:var(--emerald);opacity:.9"></span><span style="width:7%;background:var(--emerald);opacity:.3"></span></div>
+              </div>
+              <div class="acc-row">
+                <div class="top"><span class="name ag-action">Action Planner</span><span class="stats">Task acceptance rate 78%</span><span class="n">174 plans</span></div>
+                <div class="bar"><span style="width:78%;background:var(--amber);opacity:.9"></span><span style="width:19%;background:var(--amber);opacity:.3"></span></div>
+              </div>
+            </div>
+
+            <div class="sec-title" style="margin-top:2px">Model Version History</div>
+            <table class="ver-table">
+              <tr><td>v2.3.1<span class="tag-cur">CURRENT</span></td><td>Deployed 2026-06-15</td><td class="pos">+2.1% accuracy vs prev</td></tr>
+              <tr><td>v2.2.0</td><td>2026-05-01</td><td>Baseline</td></tr>
+              <tr><td>v2.1.4</td><td>2026-03-20</td><td class="dep">Deprecated</td></tr>
+            </table>
+          </div>
+        </section>
+
+        <!-- COLUMN C -->
+        <section class="col col-c" aria-label="Demographic Equity Monitor">
+          <div class="col-head">
+            <div class="row"><h2>Demographic Equity Monitor</h2></div>
+            <div class="parity-head" style="margin-top:4px">
+              <span class="parity-score">0.94</span>
+              <span class="sub" style="margin:0">Parity Score — fairness across subgroups, target ≥ 0.90</span>
+            </div>
+          </div>
+          <div class="col-body">
+            <canvas id="radarChart" aria-label="Hexagonal radar chart of demographic parity scores across six subgroup axes"></canvas>
+
+            <div class="sec-title">Areas for Review</div>
+            <div class="review-list">
+              <div class="review-item"><span class="flag flag-red"></span><span><b class="fr">Language:</b> non-English speakers showing lower recommendation accuracy</span></div>
+              <div class="review-item"><span class="flag flag-amber"></span><span><b class="fa">Payer Type:</b> Medicaid patients slightly under-recommended for specialist referrals</span></div>
+              <div class="review-item"><span class="flag flag-dim"></span><span class="muted">Bias audit scheduled: 2026-07-15</span></div>
+            </div>
+
+            <div class="sec-title" style="margin-top:2px">Compliance Attestations</div>
+            <div class="attest" id="attestList"></div>
+          </div>
+        </section>
+
+      </div>
+
+      <!-- ZONE 4 -->
+      <div class="footer">
+        <span class="lead">CareSync AI Governance Framework maps to:</span>
+        <span class="fw-pill">HL7 FHIR Safety Framework</span>
+        <span class="fw-pill">FDA SaMD Pre-Sub Awareness</span>
+        <span class="fw-pill">CMS Interoperability Rule</span>
+        <span class="fw-pill">NIST AI RMF</span>
+        <span class="spacer"></span>
+        <button class="btn" type="button">
+          <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true"><path d="M4.5 2h5.7v9H2.8V3.7L4.5 2z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="M4.8 6h3.4M4.8 8.2h3.4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+          Export Full Audit Log
+        </button>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  var css = getComputedStyle(document.documentElement);
+  var C = {
+    cyan: css.getPropertyValue('--cyan').trim(),
+    red: css.getPropertyValue('--red').trim(),
+    violet: css.getPropertyValue('--violet').trim(),
+    emerald: css.getPropertyValue('--emerald').trim(),
+    amber: css.getPropertyValue('--amber').trim(),
+    text: css.getPropertyValue('--text').trim(),
+    muted: css.getPropertyValue('--text-muted').trim(),
+    dim: css.getPropertyValue('--text-dim').trim(),
+    border: css.getPropertyValue('--border').trim(),
+    borderL: css.getPropertyValue('--border-light').trim()
+  };
+  var reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  /* ---------- Audit trail ---------- */
+  var AGENTS = {
+    risk:   {label:'Risk Agent',     cls:'ag-risk'},
+    gap:    {label:'Care Gap',       cls:'ag-gap'},
+    sdoh:   {label:'SDOH',           cls:'ag-sdoh'},
+    action: {label:'Action Planner', cls:'ag-action'}
+  };
+  var STATUS = {
+    Actioned:  'st-actioned',
+    Pending:   'st-pending',
+    Dismissed: 'st-dismissed',
+    Flagged:   'st-flagged'
+  };
+  var entries = [
+    {ts:'09:42:18', p:'Maria Chen',    a:'risk',   rec:'Readmission risk: 87% — BNP 340 elevation',              fhir:'Observation/BNP-3394 · Observation/eGFR-2841', conf:91, st:'Actioned'},
+    {ts:'09:42:21', p:'Maria Chen',    a:'gap',    rec:'Cardiology follow-up overdue 4 months',                  fhir:'Encounter/4829-ENC · CarePlan/4829-CP',        conf:97, st:'Actioned'},
+    {ts:'09:42:24', p:'Maria Chen',    a:'sdoh',   rec:'Transportation barrier detected',                        fhir:'QuestionnaireResponse/4829-AHC',               conf:88, st:'Pending'},
+    {ts:'09:31:05', p:'Robert Kim',    a:'risk',   rec:'COPD exacerbation risk elevated',                        fhir:'Observation/SpO2-3721 · MedReq/3721-BR',       conf:79, st:'Actioned'},
+    {ts:'09:28:44', p:'Sandra Torres', a:'gap',    rec:'CKD diet counseling overdue',                            fhir:'CarePlan/2841-CKD',                            conf:83, st:'Pending'},
+    {ts:'09:15:22', p:'Dorothy Chen',  a:'risk',   rec:'Fall risk HIGH — recent incident',                       fhir:'Condition/falls-1923 · Observation/mobility-1923', conf:94, st:'Actioned'},
+    {ts:'08:57:11', p:'James Wilson',  a:'action', rec:'Telehealth visit recommended — mobility barrier',        fhir:'Condition/mobility-4411 · SDOH-4411',          conf:72, st:'Pending'},
+    {ts:'08:44:30', p:'Michael Park',  a:'gap',    rec:'Mental health referral — PHQ-9 score 14',                fhir:'Observation/PHQ9-5533',                        conf:88, st:'Pending'},
+    {ts:'08:30:15', p:'Linda Rogers',  a:'sdoh',   rec:'Food insecurity positive — 2 of 3 items',                fhir:'QuestionnaireResponse/3299-AHC',               conf:91, st:'Actioned'},
+    {ts:'08:15:02', p:'Thomas Hill',   a:'risk',   rec:'Polypharmacy risk — 11 active medications',              fhir:'MedicationRequest/4x6-POLY',                   conf:65, st:'Flagged'}
+  ];
+  function confClass(v){ return v >= 80 ? 'conf-hi' : v >= 60 ? 'conf-mid' : 'conf-lo'; }
+
+  var list = document.getElementById('auditList');
+  entries.forEach(function(e, i){
+    var ag = AGENTS[e.a];
+    var div = document.createElement('div');
+    div.className = 'entry';
+    div.style.animationDelay = reduced ? '0s' : (i * 80) + 'ms';
+    div.innerHTML =
+      '<div class="l1">' +
+        '<span class="ts">' + e.ts + '</span>' +
+        '<span class="patient">' + e.p + '</span>' +
+        '<span class="agent ' + ag.cls + '">' + ag.label + '</span>' +
+        '<span class="status ' + STATUS[e.st] + '">' + e.st + '</span>' +
+      '</div>' +
+      '<div class="rec">&ldquo;' + e.rec + '&rdquo;</div>' +
+      '<div class="l3">' +
+        '<span class="fhir">' + e.fhir + '</span>' +
+        '<span class="conf ' + confClass(e.conf) + '">' + e.conf + '%</span>' +
+      '</div>';
+    list.appendChild(div);
+  });
+
+  /* ---------- Compliance attestations ---------- */
+  var atts = [
+    ['HIPAA Privacy Rule','Compliant'],
+    ['FHIR R4 Conformance','Compliant'],
+    ['SMART on FHIR Scopes','Enforced'],
+    ['Audit Logging','Active — every FHIR read/write logged'],
+    ['Data Minimization','Active — only required resources fetched'],
+    ['De-identification','Synthea data (competition mode)']
+  ];
+  var check = '<svg width="11" height="11" viewBox="0 0 11 11" fill="none" aria-hidden="true">' +
+    '<circle cx="5.5" cy="5.5" r="4.8" stroke="' + C.emerald + '" stroke-width="1.1"/>' +
+    '<path d="m3.4 5.7 1.5 1.5 2.7-3.2" stroke="' + C.emerald + '" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  document.getElementById('attestList').innerHTML = atts.map(function(a){
+    return '<div class="att">' + check + '<span class="k">' + a[0] + '</span><span class="s">— ' + a[1] + '</span></div>';
+  }).join('');
+
+  /* ---------- Canvas helpers ---------- */
+  function setupCanvas(id){
+    var c = document.getElementById(id);
+    var dpr = window.devicePixelRatio || 1;
+    var w = c.clientWidth, h = c.clientHeight;
+    c.width = Math.round(w * dpr); c.height = Math.round(h * dpr);
+    var ctx = c.getContext('2d');
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    return {ctx: ctx, w: w, h: h};
+  }
+  function ease(t){ return 1 - Math.pow(1 - t, 3); }
+
+  /* ---------- Confidence distribution bar chart ---------- */
+  var bands = [
+    {label:'50–59%',  n:45,   color:C.red,  glow:false, alpha:.9},
+    {label:'60–69%',  n:120,  color:C.amber, glow:false, alpha:.9},
+    {label:'70–79%',  n:380,  color:C.cyan, glow:false, alpha:.55},
+    {label:'80–89%',  n:1240, color:C.cyan, glow:false, alpha:.95},
+    {label:'90–100%', n:1062, color:C.cyan, glow:true,  alpha:1}
+  ];
+  function drawBars(t){
+    var s = setupCanvas('confChart'), ctx = s.ctx, W = s.w, H = s.h;
+    var padL = 8, padR = 8, padT = 16, padB = 16;
+    var plotW = W - padL - padR, plotH = H - padT - padB;
+    var max = 1240;
+    var n = bands.length, gap = 10;
+    var bw = (plotW - gap * (n - 1)) / n;
+
+    /* faint grid */
+    ctx.strokeStyle = C.border; ctx.lineWidth = 1;
+    [0, .5, 1].forEach(function(f){
+      var y = padT + plotH * (1 - f) + .5;
+      ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(W - padR, y); ctx.stroke();
+    });
+
+    bands.forEach(function(b, i){
+      var x = padL + i * (bw + gap);
+      var bh = (b.n / max) * plotH * t;
+      var y = padT + plotH - bh;
+      ctx.save();
+      if (b.glow){ ctx.shadowColor = 'rgba(0,200,255,.65)'; ctx.shadowBlur = 12; }
+      ctx.globalAlpha = b.alpha;
+      ctx.fillStyle = b.color;
+      ctx.beginPath();
+      var r = Math.min(3, bh);
+      ctx.moveTo(x, y + bh);
+      ctx.lineTo(x, y + r); ctx.arcTo(x, y, x + r, y, r);
+      ctx.lineTo(x + bw - r, y); ctx.arcTo(x + bw, y, x + bw, y + r, r);
+      ctx.lineTo(x + bw, y + bh);
+      ctx.closePath(); ctx.fill();
+      ctx.restore();
+
+      /* count above bar */
+      ctx.fillStyle = C.text;
+      ctx.font = '700 10px "SF Mono", Menlo, monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText(Math.round(b.n * t).toLocaleString('en-US'), x + bw / 2, y - 4);
+      /* band label */
+      ctx.fillStyle = C.muted;
+      ctx.font = '9px -apple-system, "Segoe UI", sans-serif';
+      ctx.fillText(b.label, x + bw / 2, H - 4);
+    });
+  }
+
+  /* ---------- Demographic parity radar ---------- */
+  var axes = [
+    {label:'Age Group',      v:0.96},
+    {label:'Sex',            v:0.98},
+    {label:'Race/Ethnicity', v:0.91},
+    {label:'Payer Type',     v:0.89},
+    {label:'Geography',      v:0.93},
+    {label:'Language',       v:0.87}
+  ];
+  function axisColor(v){ return v >= 0.90 ? C.emerald : v >= 0.885 ? C.amber : C.red; }
+  var VMIN = 0.75; /* radial scale floor so small gaps read */
+  function rOf(v, R){ return R * Math.max(0, (v - VMIN) / (1 - VMIN)); }
+
+  function drawRadar(t){
+    var s = setupCanvas('radarChart'), ctx = s.ctx, W = s.w, H = s.h;
+    var cx = W / 2, cy = H / 2 + 2;
+    var R = Math.min(W, H) / 2 - 26;
+    var N = axes.length;
+    function pt(i, r){
+      var a = -Math.PI / 2 + i * 2 * Math.PI / N;
+      return [cx + r * Math.cos(a), cy + r * Math.sin(a)];
+    }
+    function ring(r){
+      ctx.beginPath();
+      for (var i = 0; i <= N; i++){ var p = pt(i % N, r); i ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1]); }
+    }
+
+    /* grid rings */
+    ctx.strokeStyle = C.border; ctx.lineWidth = 1;
+    [0.80, 0.85, 0.95].forEach(function(v){ ring(rOf(v, R)); ctx.stroke(); });
+
+    /* spokes */
+    for (var i = 0; i < N; i++){
+      var p = pt(i, R);
+      ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(p[0], p[1]);
+      ctx.strokeStyle = C.border; ctx.stroke();
+    }
+
+    /* threshold ring 0.90 (dashed amber) */
+    ctx.save();
+    ctx.setLineDash([4, 4]);
+    ctx.strokeStyle = 'rgba(240,151,10,.55)'; ctx.lineWidth = 1;
+    ring(rOf(0.90, R)); ctx.stroke();
+    ctx.restore();
+
+    /* ideal parity outer ring 1.0 */
+    ctx.strokeStyle = C.borderL; ctx.lineWidth = 1.4;
+    ring(R); ctx.stroke();
+
+    /* actual polygon (animated from center) */
+    ctx.beginPath();
+    for (var j = 0; j <= N; j++){
+      var k = j % N;
+      var p2 = pt(k, rOf(axes[k].v, R) * t);
+      j ? ctx.lineTo(p2[0], p2[1]) : ctx.moveTo(p2[0], p2[1]);
+    }
+    ctx.closePath();
+    ctx.fillStyle = 'rgba(15,196,138,.13)';
+    ctx.fill();
+    ctx.strokeStyle = C.emerald; ctx.lineWidth = 1.6; ctx.stroke();
+
+    /* vertex dots + labels */
+    ctx.font = '9px -apple-system, "Segoe UI", sans-serif';
+    for (var m = 0; m < N; m++){
+      var col = axisColor(axes[m].v);
+      var vp = pt(m, rOf(axes[m].v, R) * t);
+      ctx.beginPath(); ctx.arc(vp[0], vp[1], 3, 0, Math.PI * 2);
+      ctx.fillStyle = col; ctx.fill();
+
+      var lp = pt(m, R + 13);
+      ctx.textAlign = Math.abs(lp[0] - cx) < 6 ? 'center' : (lp[0] > cx ? 'left' : 'right');
+      ctx.fillStyle = C.muted;
+      ctx.fillText(axes[m].label, lp[0], lp[1] - 1);
+      ctx.fillStyle = col;
+      ctx.font = '700 9px "SF Mono", Menlo, monospace';
+      ctx.fillText(axes[m].v.toFixed(2), lp[0], lp[1] + 10);
+      ctx.font = '9px -apple-system, "Segoe UI", sans-serif';
+    }
+  }
+
+  /* ---------- Animate ---------- */
+  var DUR = 750, start = null;
+  function frame(ts){
+    if (start === null) start = ts;
+    var t = ease(Math.min(1, (ts - start) / DUR));
+    drawBars(t); drawRadar(t);
+    if (t < 1) requestAnimationFrame(frame);
+  }
+  function render(){
+    if (reduced){ drawBars(1); drawRadar(1); }
+    else { start = null; requestAnimationFrame(frame); }
+  }
+  window.addEventListener('resize', function(){ drawBars(1); drawRadar(1); });
+  render();
+})();
+</script>

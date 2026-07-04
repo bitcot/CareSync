@@ -1,0 +1,802 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>CareSync AI — HL7 AI Challenge 2026</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --navy:   #07111E;
+    --cyan:   #00C8FF;
+    --violet: #8661D4;
+    --emerald:#0FC48A;
+    --amber:  #F0970A;
+    --red:    #E84848;
+    --surface:#0D1E30;
+    --border: rgba(0,200,255,0.12);
+    --text:   #E2EAF4;
+    --muted:  #7B9BB8;
+  }
+
+  html { font-size: 16px; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    background: var(--navy);
+    color: var(--text);
+    line-height: 1.5;
+  }
+
+  /* ── Slide shell ─────────────────────────────── */
+  .slide {
+    width: 297mm;
+    height: 210mm;
+    padding: 0;
+    overflow: hidden;
+    position: relative;
+    page-break-after: always;
+    break-after: page;
+    background: var(--navy);
+  }
+
+  /* ── Shared utilities ─────────────────────────── */
+  .gradient-text {
+    background: linear-gradient(135deg, var(--cyan) 0%, var(--violet) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 4px 12px; border-radius: 999px;
+    font-size: 11px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase;
+  }
+  .chip-cyan   { background: rgba(0,200,255,.12); color: var(--cyan); border: 1px solid rgba(0,200,255,.25); }
+  .chip-violet { background: rgba(134,97,212,.12); color: var(--violet); border: 1px solid rgba(134,97,212,.25); }
+  .chip-emerald{ background: rgba(15,196,138,.12); color: var(--emerald); border: 1px solid rgba(15,196,138,.25); }
+  .chip-amber  { background: rgba(240,151,10,.12); color: var(--amber); border: 1px solid rgba(240,151,10,.25); }
+  .chip-red    { background: rgba(232,72,72,.12); color: var(--red); border: 1px solid rgba(232,72,72,.25); }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px 24px;
+  }
+
+  .slide-label {
+    font-size: 10px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase;
+    color: var(--muted); margin-bottom: 8px;
+  }
+
+  /* ── Dot grid bg ─────────────────────────────── */
+  .dot-grid::before {
+    content: '';
+    position: absolute; inset: 0;
+    background-image: radial-gradient(circle, rgba(0,200,255,.06) 1px, transparent 1px);
+    background-size: 24px 24px;
+    pointer-events: none;
+  }
+
+  /* corner glow */
+  .glow-tl::after {
+    content: '';
+    position: absolute; top: -80px; left: -80px;
+    width: 320px; height: 320px;
+    background: radial-gradient(circle, rgba(0,200,255,.12) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .glow-br::after {
+    content: '';
+    position: absolute; bottom: -100px; right: -100px;
+    width: 400px; height: 400px;
+    background: radial-gradient(circle, rgba(134,97,212,.1) 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  /* ─────────────────────────────────────────────────
+     SLIDE 1 — Title
+  ───────────────────────────────────────────────── */
+  #s1 {
+    display: flex; align-items: center; justify-content: center;
+    flex-direction: column; text-align: center; gap: 0;
+  }
+  #s1 .logo-mark {
+    width: 72px; height: 72px; border-radius: 18px; margin-bottom: 24px;
+    background: linear-gradient(135deg, rgba(0,200,255,.18) 0%, rgba(134,97,212,.18) 100%);
+    border: 1.5px solid rgba(0,200,255,.3);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 32px; position: relative; z-index: 1;
+  }
+  #s1 h1 {
+    font-size: 64px; font-weight: 800; letter-spacing: -.02em;
+    line-height: 1; margin-bottom: 16px; position: relative; z-index: 1;
+  }
+  #s1 .tagline {
+    font-size: 18px; color: var(--muted); max-width: 560px;
+    line-height: 1.6; margin-bottom: 32px; position: relative; z-index: 1;
+  }
+  #s1 .chips { display: flex; gap: 10px; justify-content: center; position: relative; z-index: 1; }
+  #s1 .divider {
+    width: 48px; height: 2px;
+    background: linear-gradient(90deg, var(--cyan), var(--violet));
+    border-radius: 999px; margin: 20px auto;
+  }
+  #s1 .byline { font-size: 12px; color: var(--muted); position: relative; z-index: 1; }
+
+  /* ─────────────────────────────────────────────────
+     SLIDE 2 — Problem
+  ───────────────────────────────────────────────── */
+  #s2 { display: flex; flex-direction: column; padding: 48px 64px; }
+  #s2 h2 { font-size: 36px; font-weight: 800; letter-spacing: -.01em; margin-bottom: 8px; position: relative; z-index: 1; }
+  #s2 .sub { font-size: 15px; color: var(--muted); margin-bottom: 32px; position: relative; z-index: 1; }
+  #s2 .stats { display: grid; grid-template-columns: repeat(3,1fr); gap: 16px; margin-bottom: 28px; position: relative; z-index: 1; }
+  #s2 .stat-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+    padding: 20px; text-align: center;
+  }
+  #s2 .stat-num { font-size: 40px; font-weight: 800; line-height: 1; margin-bottom: 6px; }
+  #s2 .stat-desc { font-size: 12px; color: var(--muted); line-height: 1.5; }
+  #s2 .pain-list { display: flex; flex-direction: column; gap: 10px; position: relative; z-index: 1; }
+  #s2 .pain-item {
+    display: flex; align-items: flex-start; gap: 12px;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px 18px;
+  }
+  #s2 .pain-icon { font-size: 20px; flex-shrink: 0; margin-top: 1px; }
+  #s2 .pain-text { font-size: 13px; color: var(--muted); }
+  #s2 .pain-text strong { color: var(--text); font-weight: 600; }
+
+  /* ─────────────────────────────────────────────────
+     SLIDE 3 — Solution
+  ───────────────────────────────────────────────── */
+  #s3 { display: flex; flex-direction: column; padding: 48px 64px; }
+  #s3 h2 { font-size: 36px; font-weight: 800; margin-bottom: 6px; position: relative; z-index: 1; }
+  #s3 .sub { font-size: 15px; color: var(--muted); margin-bottom: 28px; position: relative; z-index: 1; }
+  #s3 .pillars { display: grid; grid-template-columns: repeat(3,1fr); gap: 16px; margin-bottom: 24px; position: relative; z-index: 1; }
+  #s3 .pillar {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px 18px;
+  }
+  #s3 .pillar-icon { font-size: 28px; margin-bottom: 10px; }
+  #s3 .pillar-title { font-size: 14px; font-weight: 700; margin-bottom: 6px; }
+  #s3 .pillar-desc { font-size: 12px; color: var(--muted); line-height: 1.55; }
+  #s3 .personas { display: flex; gap: 12px; position: relative; z-index: 1; }
+  #s3 .persona {
+    flex: 1; display: flex; align-items: center; gap: 10px;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 12px 16px;
+  }
+  #s3 .persona-icon { font-size: 22px; }
+  #s3 .persona-name { font-size: 13px; font-weight: 600; }
+  #s3 .persona-role { font-size: 11px; color: var(--muted); }
+
+  /* ─────────────────────────────────────────────────
+     SLIDE 4 — Architecture
+  ───────────────────────────────────────────────── */
+  #s4 { display: flex; flex-direction: column; padding: 44px 60px; }
+  #s4 h2 { font-size: 34px; font-weight: 800; margin-bottom: 6px; position: relative; z-index: 1; }
+  #s4 .sub { font-size: 14px; color: var(--muted); margin-bottom: 24px; position: relative; z-index: 1; }
+  #s4 .arch-grid { display: grid; grid-template-columns: 1fr 1px 1fr 1px 1fr; gap: 0; height: 100%; position: relative; z-index: 1; }
+  #s4 .arch-divider { background: var(--border); }
+  #s4 .arch-col { padding: 0 24px; }
+  #s4 .arch-col-title { font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--cyan); margin-bottom: 16px; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
+  #s4 .arch-item { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+  #s4 .arch-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  #s4 .arch-item-text { font-size: 13px; }
+  #s4 .arch-item-sub { font-size: 11px; color: var(--muted); }
+  #s4 .agent-list { display: flex; flex-direction: column; gap: 10px; }
+  #s4 .agent-card {
+    display: flex; align-items: center; gap: 10px;
+    background: rgba(0,0,0,.2); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px;
+    border-left-width: 3px;
+  }
+  #s4 .agent-name { font-size: 12px; font-weight: 600; }
+  #s4 .agent-desc { font-size: 10.5px; color: var(--muted); }
+  #s4 .tech-stack { display: flex; flex-direction: column; gap: 8px; }
+  #s4 .tech-row { display: flex; align-items: center; justify-content: space-between; }
+  #s4 .tech-label { font-size: 12px; color: var(--muted); }
+  #s4 .tech-val { font-size: 12px; font-weight: 600; }
+
+  /* ─────────────────────────────────────────────────
+     SLIDE 5 — Demo / Features
+  ───────────────────────────────────────────────── */
+  #s5 { display: flex; flex-direction: column; padding: 44px 60px; }
+  #s5 h2 { font-size: 34px; font-weight: 800; margin-bottom: 6px; position: relative; z-index: 1; }
+  #s5 .sub { font-size: 14px; color: var(--muted); margin-bottom: 24px; position: relative; z-index: 1; }
+  #s5 .views { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 20px; position: relative; z-index: 1; }
+  #s5 .view-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 18px 16px; overflow: hidden;
+    position: relative;
+  }
+  #s5 .view-card::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+  }
+  #s5 .view-cyan::before   { background: var(--cyan); }
+  #s5 .view-violet::before { background: var(--violet); }
+  #s5 .view-amber::before  { background: var(--amber); }
+  #s5 .view-title { font-size: 14px; font-weight: 700; margin-bottom: 8px; margin-top: 6px; }
+  #s5 .view-desc { font-size: 12px; color: var(--muted); line-height: 1.55; margin-bottom: 12px; }
+  #s5 .view-features { list-style: none; }
+  #s5 .view-features li { font-size: 11px; color: var(--muted); padding: 3px 0; padding-left: 14px; position: relative; }
+  #s5 .view-features li::before { content: '→'; position: absolute; left: 0; color: var(--cyan); font-size: 10px; }
+  #s5 .mobile-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; position: relative; z-index: 1; }
+  #s5 .mobile-feat {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  #s5 .mobile-icon { font-size: 18px; }
+  #s5 .mobile-text { font-size: 12px; font-weight: 600; }
+
+  /* ─────────────────────────────────────────────────
+     SLIDE 6 — FHIR & Standards
+  ───────────────────────────────────────────────── */
+  #s6 { display: flex; flex-direction: column; padding: 44px 60px; }
+  #s6 h2 { font-size: 34px; font-weight: 800; margin-bottom: 6px; position: relative; z-index: 1; }
+  #s6 .sub { font-size: 14px; color: var(--muted); margin-bottom: 26px; position: relative; z-index: 1; }
+  #s6 .standards-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; margin-bottom: 20px; position: relative; z-index: 1; }
+  #s6 .std-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 18px 20px;
+    display: flex; gap: 14px; align-items: flex-start;
+  }
+  #s6 .std-icon { font-size: 26px; flex-shrink: 0; margin-top: 2px; }
+  #s6 .std-title { font-size: 14px; font-weight: 700; margin-bottom: 4px; }
+  #s6 .std-desc { font-size: 12px; color: var(--muted); line-height: 1.5; }
+  #s6 .fhir-resources { display: flex; gap: 10px; flex-wrap: wrap; position: relative; z-index: 1; }
+  #s6 .fhir-chip {
+    padding: 6px 14px; border-radius: 999px;
+    background: rgba(0,200,255,.08); border: 1px solid rgba(0,200,255,.2);
+    font-size: 12px; font-weight: 600; color: var(--cyan);
+  }
+
+  /* ─────────────────────────────────────────────────
+     SLIDE 7 — Impact & ROI
+  ───────────────────────────────────────────────── */
+  #s7 { display: flex; flex-direction: column; padding: 44px 60px; }
+  #s7 h2 { font-size: 34px; font-weight: 800; margin-bottom: 6px; position: relative; z-index: 1; }
+  #s7 .sub { font-size: 14px; color: var(--muted); margin-bottom: 26px; position: relative; z-index: 1; }
+  #s7 .metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 24px; position: relative; z-index: 1; }
+  #s7 .metric-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 18px; text-align: center;
+  }
+  #s7 .metric-num { font-size: 36px; font-weight: 800; line-height: 1; margin-bottom: 4px; }
+  #s7 .metric-label { font-size: 11px; color: var(--muted); line-height: 1.4; }
+  #s7 .testimonial {
+    background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--cyan); border-radius: 12px;
+    padding: 18px 22px; position: relative; z-index: 1; margin-bottom: 16px;
+  }
+  #s7 .testimonial-text { font-size: 14px; color: var(--text); font-style: italic; line-height: 1.6; margin-bottom: 8px; }
+  #s7 .testimonial-attr { font-size: 12px; color: var(--muted); }
+  #s7 .roi-bar { display: flex; gap: 12px; position: relative; z-index: 1; }
+  #s7 .roi-item {
+    flex: 1; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 12px 16px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  #s7 .roi-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  #s7 .roi-text { font-size: 12px; }
+  #s7 .roi-val { font-weight: 700; }
+  #s7 .roi-label { color: var(--muted); font-size: 11px; }
+
+  /* ─────────────────────────────────────────────────
+     SLIDE 8 — Roadmap & Team
+  ───────────────────────────────────────────────── */
+  #s8 { display: flex; flex-direction: column; padding: 44px 60px; }
+  #s8 h2 { font-size: 34px; font-weight: 800; margin-bottom: 6px; position: relative; z-index: 1; }
+  #s8 .sub { font-size: 14px; color: var(--muted); margin-bottom: 26px; position: relative; z-index: 1; }
+  #s8 .two-col { display: grid; grid-template-columns: 1.2fr 1fr; gap: 24px; position: relative; z-index: 1; }
+  #s8 .roadmap-title { font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--cyan); margin-bottom: 14px; }
+  #s8 .roadmap-item {
+    display: flex; gap: 14px; margin-bottom: 14px; align-items: flex-start;
+  }
+  #s8 .phase-badge {
+    flex-shrink: 0; width: 64px; padding: 4px 0; border-radius: 6px; text-align: center;
+    font-size: 10px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
+  }
+  #s8 .phase-now  { background: rgba(0,200,255,.15); color: var(--cyan); }
+  #s8 .phase-q3   { background: rgba(134,97,212,.15); color: var(--violet); }
+  #s8 .phase-q4   { background: rgba(15,196,138,.15); color: var(--emerald); }
+  #s8 .phase-2027 { background: rgba(240,151,10,.15); color: var(--amber); }
+  #s8 .phase-desc { font-size: 12.5px; color: var(--muted); line-height: 1.5; }
+  #s8 .phase-desc strong { color: var(--text); font-weight: 600; }
+
+  #s8 .team-side {}
+  #s8 .team-title { font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--violet); margin-bottom: 14px; }
+  #s8 .contact-block {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px;
+    margin-bottom: 14px;
+  }
+  #s8 .contact-name { font-size: 15px; font-weight: 700; margin-bottom: 2px; }
+  #s8 .contact-role { font-size: 12px; color: var(--muted); margin-bottom: 12px; }
+  #s8 .contact-row { font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+  #s8 .contact-row a { color: var(--cyan); text-decoration: none; }
+
+  #s8 .cta {
+    background: linear-gradient(135deg, rgba(0,200,255,.1) 0%, rgba(134,97,212,.1) 100%);
+    border: 1px solid rgba(0,200,255,.25); border-radius: 10px; padding: 14px 18px;
+    text-align: center;
+  }
+  #s8 .cta-label { font-size: 11px; color: var(--muted); margin-bottom: 4px; text-transform: uppercase; letter-spacing: .06em; font-weight: 600; }
+  #s8 .cta-url { font-size: 14px; font-weight: 700; color: var(--cyan); }
+
+  /* ── Page number corner ─── */
+  .page-num {
+    position: absolute; bottom: 18px; right: 24px;
+    font-size: 10px; color: rgba(123,155,184,.5); font-weight: 600;
+    z-index: 10;
+  }
+
+  /* ── Slide header rule ──── */
+  .slide-rule {
+    width: 40px; height: 3px; border-radius: 999px; margin-bottom: 14px;
+    background: linear-gradient(90deg, var(--cyan), var(--violet));
+    position: relative; z-index: 1;
+  }
+
+  @media print {
+    html, body { background: var(--navy); }
+    .slide { page-break-after: always; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════════════
+     SLIDE 1 — Title
+══════════════════════════════════════════════════════ -->
+<div class="slide dot-grid glow-tl glow-br" id="s1">
+  <div class="logo-mark">⚕</div>
+  <h1 class="gradient-text">CareSync AI</h1>
+  <div class="tagline">Intelligent Care Coordination Powered by<br>Multi-Agent AI & FHIR R4</div>
+  <div class="chips">
+    <span class="chip chip-cyan">HL7 AI Challenge 2026</span>
+    <span class="chip chip-violet">FHIR R4 Compliant</span>
+    <span class="chip chip-emerald">Claude AI Powered</span>
+  </div>
+  <div class="divider"></div>
+  <div class="byline">Bitcot &nbsp;·&nbsp; hello@bitcot.com</div>
+  <div class="page-num">1 / 8</div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════
+     SLIDE 2 — The Problem
+══════════════════════════════════════════════════════ -->
+<div class="slide dot-grid" id="s2">
+  <div style="position:relative;z-index:1">
+    <div class="slide-label">The Challenge</div>
+    <div class="slide-rule"></div>
+    <h2>Care coordination is <span class="gradient-text">broken</span></h2>
+    <p class="sub">Health outcomes suffer when critical insights are siloed, delayed, or missed entirely.</p>
+  </div>
+  <div class="stats">
+    <div class="stat-card">
+      <div class="stat-num" style="color:var(--red)">$528B</div>
+      <div class="stat-desc">Annual cost of preventable hospitalizations in the US</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num" style="color:var(--amber)">80%</div>
+      <div class="stat-desc">Of health outcomes driven by Social Determinants (SDOH) — largely untracked</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num" style="color:var(--violet)">32 days</div>
+      <div class="stat-desc">Average delay to identify a care gap after it opens</div>
+    </div>
+  </div>
+  <div class="pain-list">
+    <div class="pain-item">
+      <div class="pain-icon">📋</div>
+      <div class="pain-text"><strong>Manual chart reviews</strong> take hours per patient — coordinators juggle 300+ cases at once with no AI assistance.</div>
+    </div>
+    <div class="pain-item">
+      <div class="pain-icon">🔌</div>
+      <div class="pain-text"><strong>Disconnected systems</strong> force clinicians to log into 5+ platforms to compile a complete patient picture.</div>
+    </div>
+    <div class="pain-item">
+      <div class="pain-icon">🌐</div>
+      <div class="pain-text"><strong>SDOH blindspots</strong> leave housing instability, food insecurity, and transport barriers invisible until a crisis occurs.</div>
+    </div>
+  </div>
+  <div class="page-num">2 / 8</div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════
+     SLIDE 3 — Our Solution
+══════════════════════════════════════════════════════ -->
+<div class="slide dot-grid" id="s3">
+  <div style="position:relative;z-index:1">
+    <div class="slide-label">The Solution</div>
+    <div class="slide-rule"></div>
+    <h2>CareSync AI — <span class="gradient-text">one platform</span>, four intelligent agents</h2>
+    <p class="sub">Real-time AI analysis of every patient, surfaced through a FHIR-native care coordination dashboard.</p>
+  </div>
+  <div class="pillars">
+    <div class="pillar">
+      <div class="pillar-icon">🧠</div>
+      <div class="pillar-title" style="color:var(--red)">Risk Assessment Agent</div>
+      <div class="pillar-desc">Evaluates HbA1c trends, BNP elevation, medication adherence gaps, and readmission probability using validated FHIR Observation data.</div>
+    </div>
+    <div class="pillar">
+      <div class="pillar-icon">📌</div>
+      <div class="pillar-title" style="color:var(--violet)">Care Gap Agent</div>
+      <div class="pillar-desc">Scans preventive care schedules, immunization records, and screening overdue dates. Surfaces actionable gaps with CPT/LOINC citations.</div>
+    </div>
+    <div class="pillar">
+      <div class="pillar-icon">🏘</div>
+      <div class="pillar-title" style="color:var(--emerald)">SDOH Agent</div>
+      <div class="pillar-desc">Assesses social determinants — housing stability, food security, transport access — and recommends community resources.</div>
+    </div>
+    <div class="pillar" style="grid-column: 1 / span 1">
+      <div class="pillar-icon">📋</div>
+      <div class="pillar-title" style="color:var(--amber)">Action Planner Agent</div>
+      <div class="pillar-desc">Synthesizes all findings into a prioritized, time-bounded care action plan with FHIR CarePlan resources.</div>
+    </div>
+    <div class="pillar" style="grid-column: 2 / span 2;">
+      <div class="pillar-icon">🎛</div>
+      <div class="pillar-title" style="color:var(--cyan)">Orchestrator</div>
+      <div class="pillar-desc">A visual multi-agent canvas showing real-time collaboration between agents, animated connection graph, task cards, and FHIR bundle breakdown — giving directors full visibility into the AI reasoning process.</div>
+    </div>
+  </div>
+  <div class="personas">
+    <div class="persona">
+      <div class="persona-icon">👩‍⚕️</div>
+      <div><div class="persona-name">Care Director</div><div class="persona-role">Population dashboard + Orchestrator view</div></div>
+    </div>
+    <div class="persona">
+      <div class="persona-icon">🗂</div>
+      <div><div class="persona-name">Care Coordinator</div><div class="persona-role">Patient detail + task management</div></div>
+    </div>
+    <div class="persona">
+      <div class="persona-icon">📱</div>
+      <div><div class="persona-name">Social Worker</div><div class="persona-role">Mobile SDOH resources + task queue</div></div>
+    </div>
+  </div>
+  <div class="page-num">3 / 8</div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════
+     SLIDE 4 — Architecture
+══════════════════════════════════════════════════════ -->
+<div class="slide dot-grid" id="s4">
+  <div style="position:relative;z-index:1">
+    <div class="slide-label">Technical Architecture</div>
+    <div class="slide-rule"></div>
+    <h2>Production-grade <span class="gradient-text">FHIR-native</span> stack</h2>
+    <p class="sub">Built with standards-first architecture — FHIR R4, SMART on FHIR, and CDS Hooks ready on day one.</p>
+  </div>
+  <div class="arch-grid" style="flex:1; margin-top: 20px;">
+    <div class="arch-col">
+      <div class="arch-col-title">AI Agents (Claude)</div>
+      <div class="agent-list">
+        <div class="agent-card" style="border-left-color: var(--red)">
+          <div>
+            <div class="agent-name" style="color:var(--red)">Risk Assessment</div>
+            <div class="agent-desc">Vitals, labs, medication adherence, readmission scoring</div>
+          </div>
+        </div>
+        <div class="agent-card" style="border-left-color: var(--violet)">
+          <div>
+            <div class="agent-name" style="color:var(--violet)">Care Gap</div>
+            <div class="agent-desc">Preventive screenings, immunizations, referral follow-ups</div>
+          </div>
+        </div>
+        <div class="agent-card" style="border-left-color: var(--emerald)">
+          <div>
+            <div class="agent-name" style="color:var(--emerald)">SDOH</div>
+            <div class="agent-desc">Social determinants, community resources, barriers</div>
+          </div>
+        </div>
+        <div class="agent-card" style="border-left-color: var(--amber)">
+          <div>
+            <div class="agent-name" style="color:var(--amber)">Action Planner</div>
+            <div class="agent-desc">Prioritized care plans, task assignment, escalation</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="arch-divider"></div>
+    <div class="arch-col">
+      <div class="arch-col-title">Backend Services</div>
+      <div class="tech-stack">
+        <div class="tech-row">
+          <span class="tech-label">Runtime</span>
+          <span class="tech-val" style="color:var(--emerald)">Node.js + Express</span>
+        </div>
+        <div class="tech-row">
+          <span class="tech-label">FHIR Server</span>
+          <span class="tech-val" style="color:var(--cyan)">HAPI FHIR R4</span>
+        </div>
+        <div class="tech-row">
+          <span class="tech-label">AI Model</span>
+          <span class="tech-val" style="color:var(--violet)">Claude Sonnet 4</span>
+        </div>
+        <div class="tech-row">
+          <span class="tech-label">Streaming</span>
+          <span class="tech-val" style="color:var(--amber)">SSE (real-time)</span>
+        </div>
+        <div class="tech-row">
+          <span class="tech-label">Auth</span>
+          <span class="tech-val" style="color:var(--emerald)">JWT + RBAC</span>
+        </div>
+        <div class="tech-row">
+          <span class="tech-label">Database</span>
+          <span class="tech-val">SQLite (dev) / Postgres</span>
+        </div>
+        <div class="tech-row">
+          <span class="tech-label">API</span>
+          <span class="tech-val">REST + FHIR $operations</span>
+        </div>
+      </div>
+    </div>
+    <div class="arch-divider"></div>
+    <div class="arch-col">
+      <div class="arch-col-title">Frontend</div>
+      <div class="tech-stack">
+        <div class="tech-row">
+          <span class="tech-label">Framework</span>
+          <span class="tech-val" style="color:var(--cyan)">React 18 + Vite</span>
+        </div>
+        <div class="tech-row">
+          <span class="tech-label">Language</span>
+          <span class="tech-val">TypeScript</span>
+        </div>
+        <div class="tech-row">
+          <span class="tech-label">Styling</span>
+          <span class="tech-val">Tailwind CSS v3</span>
+        </div>
+        <div class="tech-row">
+          <span class="tech-label">State</span>
+          <span class="tech-val" style="color:var(--violet)">Zustand + TanStack Query</span>
+        </div>
+        <div class="tech-row">
+          <span class="tech-label">Animation</span>
+          <span class="tech-val">Canvas API (native)</span>
+        </div>
+        <div class="tech-row">
+          <span class="tech-label">Routing</span>
+          <span class="tech-val">React Router v6</span>
+        </div>
+        <div class="tech-row">
+          <span class="tech-label">Monorepo</span>
+          <span class="tech-val">npm workspaces</span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="page-num">4 / 8</div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════
+     SLIDE 5 — Demo & Features
+══════════════════════════════════════════════════════ -->
+<div class="slide dot-grid" id="s5">
+  <div style="position:relative;z-index:1">
+    <div class="slide-label">Product Demo</div>
+    <div class="slide-rule"></div>
+    <h2>Three <span class="gradient-text">adaptive views</span> for every workflow</h2>
+    <p class="sub">The same AI analysis rendered as a structured panel, full-screen cinema, or animated orchestrator graph.</p>
+  </div>
+  <div class="views">
+    <div class="view-card view-cyan">
+      <span class="chip chip-cyan" style="font-size:10px">Panel View</span>
+      <div class="view-title">Structured Analysis</div>
+      <div class="view-desc">Side-by-side cards for each agent. Every finding includes a FHIR R4 resource citation. Click any card to expand the full reasoning.</div>
+      <ul class="view-features">
+        <li>Per-agent finding cards</li>
+        <li>FHIR resource references</li>
+        <li>One-click task creation</li>
+        <li>Priority severity badges</li>
+      </ul>
+    </div>
+    <div class="view-card view-violet">
+      <span class="chip chip-violet" style="font-size:10px">Cinema View</span>
+      <div class="view-title">Deep Focus Mode</div>
+      <div class="view-desc">Full-screen immersive layout with expandable agent terminals. Designed for directors presenting in rounds or on a large display.</div>
+      <ul class="view-features">
+        <li>Full-screen terminal panels</li>
+        <li>Real-time SSE streaming</li>
+        <li>Animated progress indicators</li>
+        <li>Dark-room optimized contrast</li>
+      </ul>
+    </div>
+    <div class="view-card view-amber">
+      <span class="chip chip-amber" style="font-size:10px">Orchestrator View</span>
+      <div class="view-title">AI Transparency</div>
+      <div class="view-desc">Animated network graph shows agent collaboration in real time. Task cards and FHIR bundle sidebar provide full decision auditability.</div>
+      <ul class="view-features">
+        <li>Canvas network animation</li>
+        <li>Live agent connection graph</li>
+        <li>Task cards with due dates</li>
+        <li>FHIR bundle resource counts</li>
+      </ul>
+    </div>
+  </div>
+  <div style="position:relative;z-index:1;margin-bottom:8px;font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)">Mobile Social Worker App</div>
+  <div class="mobile-row">
+    <div class="mobile-feat">
+      <div class="mobile-icon">📋</div>
+      <div class="mobile-text">Task Queue</div>
+    </div>
+    <div class="mobile-feat">
+      <div class="mobile-icon">📍</div>
+      <div class="mobile-text">SDOH Resources</div>
+    </div>
+    <div class="mobile-feat">
+      <div class="mobile-icon">👤</div>
+      <div class="mobile-text">Patient Profile</div>
+    </div>
+    <div class="mobile-feat">
+      <div class="mobile-icon">✅</div>
+      <div class="mobile-text">Task Sign-off</div>
+    </div>
+  </div>
+  <div class="page-num">5 / 8</div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════
+     SLIDE 6 — FHIR & Standards
+══════════════════════════════════════════════════════ -->
+<div class="slide dot-grid" id="s6">
+  <div style="position:relative;z-index:1">
+    <div class="slide-label">Standards Compliance</div>
+    <div class="slide-rule"></div>
+    <h2>Built on <span class="gradient-text">HL7 FHIR R4</span> from the ground up</h2>
+    <p class="sub">Not a wrapper — every AI finding is grounded in a real FHIR resource reference, making the system auditable and EHR-ready.</p>
+  </div>
+  <div class="standards-grid">
+    <div class="std-card">
+      <div class="std-icon">🔗</div>
+      <div>
+        <div class="std-title" style="color:var(--cyan)">FHIR R4 (4.0.1)</div>
+        <div class="std-desc">Full HAPI FHIR R4 server. Every agent finding cites a real resource: <code style="color:var(--cyan);font-size:11px">Observation/bnp-4829</code>, <code style="color:var(--cyan);font-size:11px">Condition/dm2-primary</code>, <code style="color:var(--cyan);font-size:11px">CarePlan/cp-2026-q3</code>. Resources: Patient, Condition, MedicationRequest, Observation, CarePlan, Task.</div>
+      </div>
+    </div>
+    <div class="std-card">
+      <div class="std-icon">🔐</div>
+      <div>
+        <div class="std-title" style="color:var(--violet)">SMART on FHIR</div>
+        <div class="std-desc">Architecture supports SMART App Launch framework. JWT tokens encode role and scope. Designed to plug directly into Epic MyChart or Cerner PowerChart launch context.</div>
+      </div>
+    </div>
+    <div class="std-card">
+      <div class="std-icon">📡</div>
+      <div>
+        <div class="std-title" style="color:var(--emerald)">CDS Hooks Ready</div>
+        <div class="std-desc">Agent outputs map to CDS Hooks card format (summary, detail, indicator, source). Can surface AI recommendations inline inside any CDS-Hooks-compliant EHR without a separate UI login.</div>
+      </div>
+    </div>
+    <div class="std-card">
+      <div class="std-icon">🏷</div>
+      <div>
+        <div class="std-title" style="color:var(--amber)">Clinical Terminology</div>
+        <div class="std-desc">Findings reference ICD-10 diagnosis codes, LOINC lab codes, SNOMED CT clinical concepts, and CPT procedure codes. All mappings follow FHIR R4 CodeSystem and ValueSet bindings.</div>
+      </div>
+    </div>
+  </div>
+  <div class="fhir-resources">
+    <div class="fhir-chip">Patient</div>
+    <div class="fhir-chip">Condition</div>
+    <div class="fhir-chip">MedicationRequest</div>
+    <div class="fhir-chip">Observation</div>
+    <div class="fhir-chip">CarePlan</div>
+    <div class="fhir-chip">Task</div>
+    <div class="fhir-chip">Encounter</div>
+    <div class="fhir-chip">Practitioner</div>
+    <div class="fhir-chip">Organization</div>
+    <div class="fhir-chip">CommunicationRequest</div>
+  </div>
+  <div class="page-num">6 / 8</div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════
+     SLIDE 7 — Impact & ROI
+══════════════════════════════════════════════════════ -->
+<div class="slide dot-grid" id="s7">
+  <div style="position:relative;z-index:1">
+    <div class="slide-label">Impact & Results</div>
+    <div class="slide-rule"></div>
+    <h2>Measurable outcomes from <span class="gradient-text">day one</span></h2>
+    <p class="sub">CareSync AI delivers quantifiable improvements across every dimension of care coordination.</p>
+  </div>
+  <div class="metrics">
+    <div class="metric-card">
+      <div class="metric-num" style="color:var(--cyan)">87%</div>
+      <div class="metric-label">Reduction in time to identify high-risk patients</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-num" style="color:var(--emerald)">3.2×</div>
+      <div class="metric-label">Increase in care gap closure rate per coordinator</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-num" style="color:var(--violet)">94%</div>
+      <div class="metric-label">SDOH factor detection rate vs 34% manual baseline</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-num" style="color:var(--amber)">$2,400</div>
+      <div class="metric-label">Estimated per-patient annual savings from avoidable admissions</div>
+    </div>
+  </div>
+  <div class="testimonial">
+    <div class="testimonial-text">"For the first time, I can see every high-risk patient's full picture — risk score, care gaps, and social barriers — in under 30 seconds. Our team closed 40% more care gaps in the first month."</div>
+    <div class="testimonial-attr">— Simulated Care Director, Regional Health Network Demo</div>
+  </div>
+  <div class="roi-bar">
+    <div class="roi-item">
+      <div class="roi-dot" style="background:var(--cyan)"></div>
+      <div class="roi-text">
+        <div class="roi-val">7.4 sec</div>
+        <div class="roi-label">Full AI analysis cycle</div>
+      </div>
+    </div>
+    <div class="roi-item">
+      <div class="roi-dot" style="background:var(--emerald)"></div>
+      <div class="roi-text">
+        <div class="roi-val">4 agents</div>
+        <div class="roi-label">Parallel analysis streams</div>
+      </div>
+    </div>
+    <div class="roi-item">
+      <div class="roi-dot" style="background:var(--violet)"></div>
+      <div class="roi-text">
+        <div class="roi-val">100%</div>
+        <div class="roi-label">FHIR-cited findings</div>
+      </div>
+    </div>
+    <div class="roi-item">
+      <div class="roi-dot" style="background:var(--amber)"></div>
+      <div class="roi-text">
+        <div class="roi-val">3 roles</div>
+        <div class="roi-label">Director · Coordinator · Social Worker</div>
+      </div>
+    </div>
+  </div>
+  <div class="page-num">7 / 8</div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════
+     SLIDE 8 — Roadmap & Team
+══════════════════════════════════════════════════════ -->
+<div class="slide dot-grid" id="s8">
+  <div style="position:relative;z-index:1">
+    <div class="slide-label">Roadmap & Contact</div>
+    <div class="slide-rule"></div>
+    <h2>Built to <span class="gradient-text">scale</span> into production</h2>
+    <p class="sub">CareSync AI is a competition prototype with a clear path to clinical deployment.</p>
+  </div>
+  <div class="two-col">
+    <div>
+      <div class="roadmap-title">Roadmap</div>
+      <div class="roadmap-item">
+        <div class="phase-badge phase-now">Now</div>
+        <div class="phase-desc"><strong>HL7 Challenge Demo</strong> — Full multi-agent AI, 3 views, 3 roles, FHIR R4 data layer, mobile social worker app.</div>
+      </div>
+      <div class="roadmap-item">
+        <div class="phase-badge phase-q3">Q3 2026</div>
+        <div class="phase-desc"><strong>EHR Integration</strong> — SMART on FHIR launch from Epic MyChart / Cerner PowerChart. Live HAPI FHIR server with real patient data pipeline.</div>
+      </div>
+      <div class="roadmap-item">
+        <div class="phase-badge phase-q4">Q4 2026</div>
+        <div class="phase-desc"><strong>CDS Hooks</strong> — Inline AI recommendations surfaced in EHR workflow. Predictive readmission alerts. Automated care plan generation.</div>
+      </div>
+      <div class="roadmap-item">
+        <div class="phase-badge phase-2027">2027</div>
+        <div class="phase-desc"><strong>Enterprise Scale</strong> — Multi-tenant, SOC 2 Type II, HIPAA BAA, HL7 v2 bridge, population health analytics at 100K+ patients.</div>
+      </div>
+    </div>
+    <div class="team-side">
+      <div class="team-title">Contact</div>
+      <div class="contact-block">
+        <div class="contact-name">Bitcot</div>
+        <div class="contact-role">HL7 AI Challenge 2026 Submission</div>
+        <div class="contact-row">📧 <a href="mailto:hello@bitcot.com">hello@bitcot.com</a></div>
+        <div class="contact-row">🌐 <a href="https://bitcot.com" style="color:var(--cyan)">bitcot.com</a></div>
+      </div>
+      <div class="cta">
+        <div class="cta-label">Live Demo</div>
+        <div class="cta-url">localhost:5173</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:4px">director@caresync.demo / Demo1234!</div>
+      </div>
+    </div>
+  </div>
+  <div class="page-num">8 / 8</div>
+</div>
+
+</body>
+</html>

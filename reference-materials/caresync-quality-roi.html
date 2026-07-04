@@ -1,0 +1,906 @@
+<title>CareSync AI — Quality &amp; ROI</title>
+<style>
+  :root {
+    --bg: #07111E;
+    --surface: #0C1829;
+    --surface-raised: #132842;
+    --border: #1A3450;
+    --border-light: #244A6A;
+    --cyan: #00C8FF;
+    --cyan-dim: rgba(0,200,255,0.10);
+    --red: #E84848;
+    --violet: #8661D4;
+    --emerald: #0FC48A;
+    --amber: #F0970A;
+    --text: #C8E6F5;
+    --text-muted: #5A8FAA;
+    --text-dim: #2C567A;
+    --font: -apple-system, 'SF Pro Text', 'Segoe UI', system-ui, sans-serif;
+    --mono: 'SF Mono', 'Menlo', monospace;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html, body { height: 100%; overflow: hidden; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font);
+    font-size: 13px;
+    -webkit-font-smoothing: antialiased;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ============ APP HEADER ============ */
+  .app-header {
+    height: 48px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 16px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    z-index: 10;
+  }
+  .brand { display: flex; align-items: center; gap: 10px; }
+  .brand-mark {
+    width: 26px; height: 26px; border-radius: 7px;
+    background: linear-gradient(135deg, rgba(0,200,255,0.22), rgba(15,196,138,0.18));
+    border: 1px solid rgba(0,200,255,0.35);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .brand-name { font-size: 14px; font-weight: 700; letter-spacing: -0.2px; }
+  .brand-name em { font-style: normal; color: var(--cyan); }
+  .brand-sub {
+    font-size: 11px; color: var(--text-muted); font-weight: 500;
+    padding-left: 12px; margin-left: 4px; border-left: 1px solid var(--border);
+  }
+  .header-right { display: flex; align-items: center; gap: 14px; }
+  .env-pill {
+    font-family: var(--mono); font-size: 10px; color: var(--emerald);
+    background: rgba(15,196,138,0.10); border: 1px solid rgba(15,196,138,0.3);
+    padding: 3px 9px; border-radius: 20px; letter-spacing: 0.3px;
+  }
+  .avatar {
+    width: 28px; height: 28px; border-radius: 50%;
+    background: var(--surface-raised); border: 1px solid var(--border-light);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px; font-weight: 700; color: var(--cyan);
+  }
+
+  /* ============ LAYOUT ============ */
+  .app-body { flex: 1; display: flex; min-height: 0; }
+
+  .sidenav {
+    width: 56px; flex-shrink: 0;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    display: flex; flex-direction: column; align-items: center;
+    padding: 12px 0; gap: 6px;
+  }
+  .nav-icon {
+    width: 38px; height: 38px; border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+  }
+  .nav-icon:hover { background: rgba(0,200,255,0.06); }
+  .nav-icon.active {
+    background: var(--cyan-dim);
+    border: 1px solid rgba(0,200,255,0.35);
+  }
+  .nav-spacer { flex: 1; }
+
+  .main {
+    flex: 1; min-width: 0; min-height: 0;
+    display: flex; flex-direction: column;
+    padding: 10px 14px;
+    gap: 10px;
+    overflow: hidden;
+  }
+
+  /* ============ ZONE 1: KPI TILES ============ */
+  .kpi-row {
+    height: 84px; flex-shrink: 0;
+    display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px;
+  }
+  .kpi {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 12px 14px;
+    display: flex; flex-direction: column; justify-content: space-between;
+    position: relative; overflow: hidden;
+  }
+  .kpi::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+    background: var(--kpi-c, var(--cyan)); opacity: 0.55;
+  }
+  .kpi-label { font-size: 10px; font-weight: 600; color: var(--text-muted); letter-spacing: 0.5px; text-transform: uppercase; }
+  .kpi-value { font-size: 22px; font-weight: 800; letter-spacing: -0.5px; line-height: 1; }
+  .kpi-value small { font-size: 12px; font-weight: 600; color: var(--text-muted); letter-spacing: 0; }
+  .kpi-trend { font-size: 10px; font-weight: 600; display: flex; align-items: center; gap: 4px; color: var(--text-muted); }
+  .kpi-trend .t-up   { color: var(--emerald); }
+  .kpi-trend .t-down { color: var(--emerald); }
+  .kpi-trend .t-warn { color: var(--amber); }
+
+  /* ============ ZONE 2 ============ */
+  .zone2 { flex: 1; min-height: 0; display: flex; gap: 12px; }
+  .col-left  { flex: 1.6; min-width: 0; display: flex; flex-direction: column; gap: 10px; }
+  .col-right { flex: 1;   min-width: 0; display: flex; flex-direction: column; gap: 10px; }
+
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 12px 14px;
+    display: flex; flex-direction: column;
+    min-height: 0;
+  }
+  .panel-head {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 8px; flex-shrink: 0;
+  }
+  .panel-title { font-size: 12px; font-weight: 700; letter-spacing: 0.2px; display: flex; align-items: center; gap: 7px; }
+  .panel-title svg { flex-shrink: 0; }
+  .badge {
+    font-size: 10px; font-weight: 600; color: var(--text-muted);
+    background: var(--surface-raised); border: 1px solid var(--border);
+    padding: 2px 9px; border-radius: 20px;
+  }
+  .badge.hot { color: var(--amber); border-color: rgba(240,151,10,0.35); background: rgba(240,151,10,0.08); }
+
+  canvas { display: block; width: 100%; }
+  #hedisChart { height: 200px; flex-shrink: 0; }
+  #trendChart { height: 140px; flex-shrink: 0; }
+
+  /* AI callout */
+  .callout {
+    background: var(--surface-raised);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--cyan);
+    border-radius: 8px;
+    padding: 9px 12px;
+    display: flex; align-items: center; gap: 12px;
+    margin-top: 8px; flex-shrink: 0;
+  }
+  .callout-icon { flex-shrink: 0; }
+  .callout-text { flex: 1; font-size: 11px; line-height: 1.5; color: var(--text); }
+  .callout-text b { color: var(--cyan); }
+  .callout-text .money { color: var(--emerald); font-weight: 700; }
+  .btn-cyan {
+    flex-shrink: 0;
+    background: var(--cyan); color: #041018;
+    border: none; border-radius: 8px;
+    font-family: var(--font); font-size: 11px; font-weight: 700;
+    padding: 8px 14px; cursor: pointer; white-space: nowrap;
+    box-shadow: 0 2px 10px rgba(0,200,255,0.25);
+  }
+  .btn-cyan:hover { filter: brightness(1.1); }
+
+  .subsection-head {
+    display: flex; align-items: center; justify-content: space-between;
+    margin: 10px 0 6px; flex-shrink: 0;
+  }
+  .subsection-title { font-size: 12px; font-weight: 700; display: flex; align-items: center; gap: 7px; }
+  .legend { display: flex; gap: 14px; font-size: 10px; color: var(--text-muted); font-weight: 600; }
+  .legend-item { display: flex; align-items: center; gap: 6px; }
+  .legend-line { width: 18px; height: 0; border-top: 2px solid var(--cyan); }
+  .legend-line.dashed { border-top-style: dashed; border-top-color: var(--amber); }
+
+  /* Donut */
+  .donut-wrap { position: relative; height: 138px; flex-shrink: 0; }
+  #donutChart { height: 138px; }
+  .donut-center {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    pointer-events: none;
+  }
+  .donut-center .big { font-size: 21px; font-weight: 800; color: var(--cyan); letter-spacing: -0.5px; }
+  .donut-center .sub { font-size: 10px; color: var(--text-muted); font-weight: 600; margin-top: 2px; }
+
+  .donut-legend { margin-top: 6px; display: flex; flex-direction: column; gap: 4px; flex-shrink: 0; }
+  .dl-row { display: flex; align-items: center; gap: 8px; font-size: 11px; }
+  .dl-dot { width: 8px; height: 8px; border-radius: 3px; flex-shrink: 0; }
+  .dl-label { flex: 1; color: var(--text-muted); font-weight: 500; }
+  .dl-amt { font-family: var(--mono); font-size: 11px; font-weight: 600; color: var(--text); }
+
+  /* ROI card */
+  .roi-card {
+    background: var(--surface-raised);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 12px;
+    display: flex; flex-direction: column; gap: 6px;
+    flex: 1; min-height: 0; overflow: hidden;
+  }
+  .roi-head { font-size: 11px; font-weight: 700; letter-spacing: 0.3px; color: var(--text); margin-bottom: 2px; }
+  .roi-input {
+    display: flex; align-items: center; justify-content: space-between;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    padding: 5px 10px;
+    font-size: 11px;
+  }
+  .roi-input .k { color: var(--text-muted); font-weight: 500; }
+  .roi-input .v { font-family: var(--mono); font-weight: 600; color: var(--text); }
+  .roi-divider { height: 1px; background: var(--border); margin: 3px 0; }
+  .roi-line { display: flex; align-items: baseline; justify-content: space-between; font-size: 11px; }
+  .roi-line .k { color: var(--text-muted); }
+  .roi-line .v { font-family: var(--mono); font-weight: 700; color: var(--text); }
+  .roi-line .v .arrow { color: var(--text-dim); font-weight: 400; }
+  .roi-line .v.em { color: var(--emerald); }
+  .roi-total {
+    display: flex; align-items: baseline; justify-content: space-between;
+    padding-top: 6px; margin-top: 2px; border-top: 1px solid var(--border-light);
+  }
+  .roi-total .k { font-size: 11px; font-weight: 800; letter-spacing: 0.5px; }
+  .roi-total .v { font-size: 20px; font-weight: 800; color: var(--emerald); letter-spacing: -0.5px; }
+  .roi-note { font-size: 10px; color: var(--text-dim); }
+
+  /* ============ ZONE 3 ============ */
+  .zone3 {
+    height: 188px; flex-shrink: 0;
+    display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: 12px;
+  }
+  .zone3 .panel { padding: 10px 12px; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 11px; }
+  th {
+    text-align: left; font-size: 9px; font-weight: 700; letter-spacing: 0.6px;
+    text-transform: uppercase; color: var(--text-dim);
+    padding: 0 6px 5px 0; border-bottom: 1px solid var(--border);
+  }
+  th.num, td.num { text-align: right; }
+  td { padding: 4.5px 6px 4.5px 0; border-bottom: 1px solid rgba(26,52,80,0.4); color: var(--text-muted); }
+  td.name { color: var(--text); font-weight: 600; }
+  td.drg { font-family: var(--mono); font-size: 10px; color: var(--violet); }
+  td.money { font-family: var(--mono); font-weight: 700; color: var(--emerald); }
+  tr.total td { border-bottom: none; padding-top: 6px; color: var(--text); font-weight: 700; }
+  tr.total td.money { font-size: 12px; }
+
+  /* Efficiency metrics */
+  .eff-rows { display: flex; flex-direction: column; gap: 4px; flex: 1; justify-content: space-around; min-height: 0; }
+  .eff-row { display: flex; align-items: center; gap: 10px; }
+  .eff-meta { flex: 1; min-width: 0; }
+  .eff-label { font-size: 10px; color: var(--text-muted); font-weight: 600; }
+  .eff-val { font-size: 14px; font-weight: 800; letter-spacing: -0.3px; }
+  .eff-val small { font-size: 10px; font-weight: 600; color: var(--emerald); margin-left: 6px; letter-spacing: 0; }
+  .spark { width: 72px; height: 22px; flex-shrink: 0; }
+
+  /* Deadlines */
+  .dl-list { display: flex; flex-direction: column; gap: 4px; flex: 1; justify-content: space-around; min-height: 0; overflow: hidden; }
+  .dline {
+    display: flex; align-items: center; gap: 9px;
+    padding: 3px 9px;
+    background: var(--surface-raised);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+  }
+  .dline-date {
+    font-family: var(--mono); font-size: 9.5px; font-weight: 700;
+    color: var(--text-muted); width: 62px; flex-shrink: 0; line-height: 1.25;
+  }
+  .dline-bar { width: 3px; height: 20px; border-radius: 2px; flex-shrink: 0; background: var(--border-light); }
+  .dline-text { font-size: 10.5px; color: var(--text); line-height: 1.3; }
+  .dline.cy .dline-bar { background: var(--cyan); }
+  .dline.cy .dline-date { color: var(--cyan); }
+  .dline.crit { border-color: rgba(232,72,72,0.4); background: rgba(232,72,72,0.06); }
+  .dline.crit .dline-bar { background: var(--red); }
+  .dline.crit .dline-date { color: var(--red); }
+  .dline.crit .dline-text { font-weight: 700; }
+  .dline.crit .dline-text b { color: var(--red); }
+</style>
+
+<!-- APP HEADER -->
+<div class="app-header">
+  <div class="brand">
+    <div class="brand-mark">
+      <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
+        <path d="M1.5 7.5 H4.2 L5.8 3.5 L8.5 11.5 L10.2 7.5 H13.5" stroke="#00C8FF" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </div>
+    <div class="brand-name">CareSync <em>AI</em></div>
+    <div class="brand-sub">Quality &amp; ROI Dashboard</div>
+  </div>
+  <div class="header-right">
+    <div class="env-pill">FHIR R4 · CONNECTED</div>
+    <svg width="18" height="19" viewBox="0 0 21 22" fill="none">
+      <path d="M10.5 2.2 C7 2.2 4.8 4.9 4.8 8.2 C4.8 12.6 3 14.4 3 14.4 H18 C18 14.4 16.2 12.6 16.2 8.2 C16.2 4.9 14 2.2 10.5 2.2 Z" stroke="#5A8FAA" stroke-width="1.7" stroke-linejoin="round"/>
+      <path d="M8.6 17.6 A2.1 2.1 0 0 0 12.4 17.6" stroke="#5A8FAA" stroke-width="1.7" stroke-linecap="round"/>
+    </svg>
+    <div class="avatar">JM</div>
+  </div>
+</div>
+
+<div class="app-body">
+
+  <!-- LEFT NAV -->
+  <div class="sidenav">
+    <div class="nav-icon" title="Home">
+      <svg width="19" height="19" viewBox="0 0 19 19" fill="none">
+        <path d="M2.5 8 L9.5 2 L16.5 8 V16 A1 1 0 0 1 15.5 17 H11.5 V12 H7.5 V17 H3.5 A1 1 0 0 1 2.5 16 Z" stroke="#2C567A" stroke-width="1.6" stroke-linejoin="round"/>
+      </svg>
+    </div>
+    <div class="nav-icon" title="Patients">
+      <svg width="19" height="19" viewBox="0 0 19 19" fill="none">
+        <circle cx="9.5" cy="6" r="3.1" stroke="#2C567A" stroke-width="1.6"/>
+        <path d="M3.2 16.5 C3.9 13 6.4 11.5 9.5 11.5 C12.6 11.5 15.1 13 15.8 16.5" stroke="#2C567A" stroke-width="1.6" stroke-linecap="round"/>
+      </svg>
+    </div>
+    <div class="nav-icon active" title="Quality & ROI">
+      <svg width="19" height="19" viewBox="0 0 19 19" fill="none">
+        <path d="M2.5 16.5 H16.5" stroke="#00C8FF" stroke-width="1.6" stroke-linecap="round"/>
+        <rect x="3.5"  y="9.5" width="2.8" height="5" rx="0.8" fill="#00C8FF" opacity="0.55"/>
+        <rect x="8.1"  y="6"   width="2.8" height="8.5" rx="0.8" fill="#00C8FF" opacity="0.8"/>
+        <rect x="12.7" y="2.8" width="2.8" height="11.7" rx="0.8" fill="#00C8FF"/>
+      </svg>
+    </div>
+    <div class="nav-icon" title="Tasks">
+      <svg width="19" height="19" viewBox="0 0 19 19" fill="none">
+        <path d="M2.8 5 L4.2 6.4 L6.6 4" stroke="#2C567A" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M9.2 5.2 H16.2" stroke="#2C567A" stroke-width="1.6" stroke-linecap="round"/>
+        <path d="M2.8 10.5 L4.2 11.9 L6.6 9.5" stroke="#2C567A" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M9.2 10.7 H16.2" stroke="#2C567A" stroke-width="1.6" stroke-linecap="round"/>
+        <path d="M9.2 16 H16.2" stroke="#2C567A" stroke-width="1.6" stroke-linecap="round" opacity="0.5"/>
+      </svg>
+    </div>
+    <div class="nav-icon" title="Reports">
+      <svg width="19" height="19" viewBox="0 0 19 19" fill="none">
+        <rect x="3" y="2.5" width="13" height="14" rx="2" stroke="#2C567A" stroke-width="1.6"/>
+        <path d="M6.2 6.5 H12.8 M6.2 9.5 H12.8 M6.2 12.5 H10" stroke="#2C567A" stroke-width="1.6" stroke-linecap="round"/>
+      </svg>
+    </div>
+    <div class="nav-spacer"></div>
+    <div class="nav-icon" title="Settings">
+      <svg width="19" height="19" viewBox="0 0 19 19" fill="none">
+        <circle cx="9.5" cy="9.5" r="2.4" stroke="#2C567A" stroke-width="1.6"/>
+        <path d="M9.5 2 V4.2 M9.5 14.8 V17 M17 9.5 H14.8 M4.2 9.5 H2 M14.8 4.2 L13.2 5.8 M5.8 13.2 L4.2 14.8 M14.8 14.8 L13.2 13.2 M5.8 5.8 L4.2 4.2" stroke="#2C567A" stroke-width="1.6" stroke-linecap="round"/>
+      </svg>
+    </div>
+  </div>
+
+  <!-- MAIN -->
+  <div class="main">
+
+    <!-- ZONE 1: KPI TILES -->
+    <div class="kpi-row">
+      <div class="kpi" style="--kpi-c: var(--emerald)">
+        <div class="kpi-label">Cost Avoidance (YTD)</div>
+        <div class="kpi-value" style="color: var(--emerald); font-size: 25px;">$1.24M</div>
+        <div class="kpi-trend"><span class="t-up">&#9650; 22%</span> vs last quarter</div>
+      </div>
+      <div class="kpi" style="--kpi-c: var(--emerald)">
+        <div class="kpi-label">Readmissions Prevented</div>
+        <div class="kpi-value" style="color: var(--emerald)">47</div>
+        <div class="kpi-trend"><span class="t-up">&#9650; 18%</span> vs last quarter</div>
+      </div>
+      <div class="kpi" style="--kpi-c: var(--cyan)">
+        <div class="kpi-label">Avg LOS Reduction</div>
+        <div class="kpi-value" style="color: var(--cyan)">0.8 <small>days</small></div>
+        <div class="kpi-trend"><span class="t-up">&#9650; 14%</span> vs last quarter</div>
+      </div>
+      <div class="kpi" style="--kpi-c: var(--amber)">
+        <div class="kpi-label">HEDIS Composite Score</div>
+        <div class="kpi-value" style="color: var(--amber)">74.2% <small>&rarr; target 80%</small></div>
+        <div class="kpi-trend"><span class="t-up">&#9650; 3.1 pts</span> vs last quarter</div>
+      </div>
+      <div class="kpi" style="--kpi-c: var(--amber)">
+        <div class="kpi-label">Quality Incentive at Stake</div>
+        <div class="kpi-value" style="color: var(--amber)">$2.3M</div>
+        <div class="kpi-trend"><span class="t-warn">&#9679; Not yet earned</span> &middot; closes Dec 31</div>
+      </div>
+    </div>
+
+    <!-- ZONE 2 -->
+    <div class="zone2">
+
+      <!-- LEFT COLUMN -->
+      <div class="col-left">
+        <div class="panel" style="flex:1;">
+          <div class="panel-head">
+            <div class="panel-title">
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                <path d="M1.5 12.5 H12.5" stroke="#00C8FF" stroke-width="1.4" stroke-linecap="round"/>
+                <path d="M2 9 H8 M2 6 H10.5 M2 3 H6" stroke="#00C8FF" stroke-width="2.2" stroke-linecap="round"/>
+              </svg>
+              HEDIS Measure Tracker
+            </div>
+            <div class="badge hot">Q4 2026 &middot; Closes Dec 31</div>
+          </div>
+
+          <canvas id="hedisChart"></canvas>
+
+          <div class="callout">
+            <div class="callout-icon">
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                <path d="M10 1.8 L11.9 7 L17.5 7.3 L13.1 10.7 L14.6 16.2 L10 13.1 L5.4 16.2 L6.9 10.7 L2.5 7.3 L8.1 7 Z" stroke="#00C8FF" stroke-width="1.3" stroke-linejoin="round" fill="rgba(0,200,255,0.12)"/>
+              </svg>
+            </div>
+            <div class="callout-text">
+              <b>AI-Identified Opportunity</b> — Closing <b>47 more diabetes screenings</b> + <b>89 depression screenings</b> by Dec 31 unlocks <span class="money">$2.3M</span> in quality bonus incentives. CareSync has identified <b>136 reachable patients</b> across both measures. Estimated coordinator hours required: <b>68h</b>.
+            </div>
+            <button class="btn-cyan">Generate Outreach Plan</button>
+          </div>
+
+          <div class="subsection-head">
+            <div class="subsection-title">
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                <path d="M1.5 11.5 L5 7.5 L7.8 9.5 L12.5 3.5" stroke="#0FC48A" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              Readmission Trend
+            </div>
+            <div class="legend">
+              <div class="legend-item"><span class="legend-line dashed"></span>Before CareSync</div>
+              <div class="legend-item"><span class="legend-line"></span>After CareSync</div>
+            </div>
+          </div>
+          <canvas id="trendChart"></canvas>
+        </div>
+      </div>
+
+      <!-- RIGHT COLUMN -->
+      <div class="col-right">
+        <div class="panel" style="flex:1;">
+          <div class="panel-head">
+            <div class="panel-title">
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                <circle cx="7" cy="7" r="5.5" stroke="#0FC48A" stroke-width="1.5"/>
+                <path d="M7 4.2 V7 L9 8.6" stroke="#0FC48A" stroke-width="1.5" stroke-linecap="round"/>
+              </svg>
+              Financial Impact Model
+            </div>
+            <div class="badge">Cost Avoidance Breakdown</div>
+          </div>
+
+          <div class="donut-wrap">
+            <canvas id="donutChart"></canvas>
+            <div class="donut-center">
+              <div class="big">$1.24M</div>
+              <div class="sub">YTD Savings</div>
+            </div>
+          </div>
+
+          <div class="donut-legend">
+            <div class="dl-row"><span class="dl-dot" style="background:var(--emerald)"></span><span class="dl-label">Avoidable Readmissions</span><span class="dl-amt">$624,000</span></div>
+            <div class="dl-row"><span class="dl-dot" style="background:var(--cyan)"></span><span class="dl-label">ED Diversion</span><span class="dl-amt">$318,000</span></div>
+            <div class="dl-row"><span class="dl-dot" style="background:var(--violet)"></span><span class="dl-label">Care Gap Closure</span><span class="dl-amt">$187,000</span></div>
+            <div class="dl-row"><span class="dl-dot" style="background:var(--amber)"></span><span class="dl-label">SDOH Interventions</span><span class="dl-amt">$111,000</span></div>
+          </div>
+
+          <div class="roi-card" style="margin-top:8px;">
+            <div class="roi-head">ROI Calculator &middot; Projected Annual Impact</div>
+            <div class="roi-input"><span class="k">Patients in Program</span><span class="v">847</span></div>
+            <div class="roi-input"><span class="k">Avg Avoidable Admission Cost</span><span class="v">$15,200</span></div>
+            <div class="roi-input"><span class="k">Prevention Rate</span><span class="v">5.5%</span></div>
+            <div class="roi-divider"></div>
+            <div class="roi-line"><span class="k">Readmissions Prevented (annual)</span><span class="v">47 <span class="arrow">&rarr;</span> 94</span></div>
+            <div class="roi-line"><span class="k">Cost Avoidance (annual)</span><span class="v em">$1.24M <span class="arrow">&rarr;</span> $2.48M</span></div>
+            <div class="roi-line"><span class="k">Quality Incentive Unlocked</span><span class="v em">$2.3M</span></div>
+            <div class="roi-total"><span class="k">TOTAL PROJECTED ROI</span><span class="v">$4.78M</span></div>
+            <div class="roi-note">Based on AHRQ cost benchmarks &middot; Updated Jul 2026</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ZONE 3 -->
+    <div class="zone3">
+
+      <!-- PANEL A -->
+      <div class="panel">
+        <div class="panel-head">
+          <div class="panel-title">
+            <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
+              <path d="M6.5 1.2 V11.8 M6.5 1.2 C4.8 1.2 3.6 2 3.6 3.3 C3.6 4.6 4.8 5.2 6.5 5.6 C8.2 6 9.4 6.7 9.4 8 C9.4 9.4 8.2 10.2 6.5 10.2 C5.1 10.2 3.9 9.6 3.5 8.5" stroke="#0FC48A" stroke-width="1.4" stroke-linecap="round"/>
+            </svg>
+            Top Cost-Avoidance Events (30d)
+          </div>
+        </div>
+        <table>
+          <thead>
+            <tr><th>Patient</th><th>Intervention</th><th>DRG</th><th class="num">Avoided</th><th class="num">Date</th></tr>
+          </thead>
+          <tbody>
+            <tr><td class="name">Robert Kim</td><td>CHF hospitalization prevented</td><td class="drg">DRG-291</td><td class="num money">$18,400</td><td class="num">Jun 28</td></tr>
+            <tr><td class="name">Dorothy Chen</td><td>Fall-related ED visit avoided</td><td class="drg">DRG-189</td><td class="num money">$12,100</td><td class="num">Jun 25</td></tr>
+            <tr><td class="name">Sandra Torres</td><td>CKD progression delayed</td><td class="drg">DRG-684</td><td class="num money">$9,800</td><td class="num">Jun 22</td></tr>
+            <tr><td class="name">James Wilson</td><td>Readmission avoided (CHF)</td><td class="drg">DRG-291</td><td class="num money">$16,200</td><td class="num">Jun 19</td></tr>
+            <tr><td class="name">Linda Rogers</td><td>COPD exacerbation managed</td><td class="drg">DRG-192</td><td class="num money">$11,400</td><td class="num">Jun 15</td></tr>
+            <tr class="total"><td colspan="3">Total saved in 30d</td><td class="num money">$67,900</td><td></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- PANEL B -->
+      <div class="panel">
+        <div class="panel-head">
+          <div class="panel-title">
+            <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
+              <path d="M7.3 1 L2.5 7.5 H6.2 L5.7 12 L10.5 5.5 H6.8 Z" stroke="#00C8FF" stroke-width="1.3" stroke-linejoin="round" fill="rgba(0,200,255,0.1)"/>
+            </svg>
+            Efficiency Metrics
+          </div>
+        </div>
+        <div class="eff-rows">
+          <div class="eff-row">
+            <div class="eff-meta">
+              <div class="eff-label">Avg Task Completion Time</div>
+              <div class="eff-val">2.4h<small>&#9660; 18% vs last month</small></div>
+            </div>
+            <canvas class="spark" data-spark="4.1,3.8,3.9,3.4,3.2,3.0,2.9,2.7,2.6,2.4" data-color="#0FC48A"></canvas>
+          </div>
+          <div class="eff-row">
+            <div class="eff-meta">
+              <div class="eff-label">Avg Analyses per Coordinator/day</div>
+              <div class="eff-val">12.3</div>
+            </div>
+            <canvas class="spark" data-spark="8.1,8.9,9.4,9.2,10.1,10.8,11.2,11.6,12.0,12.3" data-color="#00C8FF"></canvas>
+          </div>
+          <div class="eff-row">
+            <div class="eff-meta">
+              <div class="eff-label">FHIR Queries Processed (30d)</div>
+              <div class="eff-val">124,839</div>
+            </div>
+            <canvas class="spark" data-spark="62,71,78,84,92,98,104,111,118,125" data-color="#8661D4"></canvas>
+          </div>
+          <div class="eff-row">
+            <div class="eff-meta">
+              <div class="eff-label">Agent Response Time (avg)</div>
+              <div class="eff-val">3.2s</div>
+            </div>
+            <canvas class="spark" data-spark="5.1,4.8,4.9,4.3,4.1,3.9,3.7,3.5,3.3,3.2" data-color="#F0970A"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- PANEL C -->
+      <div class="panel">
+        <div class="panel-head">
+          <div class="panel-title">
+            <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
+              <rect x="1.5" y="2.5" width="10" height="9.5" rx="1.8" stroke="#F0970A" stroke-width="1.3"/>
+              <path d="M1.5 5.5 H11.5 M4.2 1 V3.5 M8.8 1 V3.5" stroke="#F0970A" stroke-width="1.3" stroke-linecap="round"/>
+            </svg>
+            Upcoming Quality Deadlines
+          </div>
+        </div>
+        <div class="dl-list">
+          <div class="dline cy">
+            <div class="dline-date">JUL 15<br>2026</div>
+            <div class="dline-bar"></div>
+            <div class="dline-text">Bias audit scheduled</div>
+          </div>
+          <div class="dline">
+            <div class="dline-date">SEP 30<br>2026</div>
+            <div class="dline-bar"></div>
+            <div class="dline-text">HEDIS interim reporting</div>
+          </div>
+          <div class="dline">
+            <div class="dline-date">OCT 31<br>2026</div>
+            <div class="dline-bar"></div>
+            <div class="dline-text">Q3 quality bonus payment</div>
+          </div>
+          <div class="dline crit">
+            <div class="dline-date">DEC 31<br>2026</div>
+            <div class="dline-bar"></div>
+            <div class="dline-text">HEDIS measurement period closes — <b>$2.3M at stake</b></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  var C = {
+    cyan: '#00C8FF', red: '#E84848', violet: '#8661D4', emerald: '#0FC48A',
+    amber: '#F0970A', text: '#C8E6F5', muted: '#5A8FAA', dim: '#2C567A',
+    border: '#1A3450', raised: '#132842'
+  };
+  var FONT = "-apple-system, 'SF Pro Text', 'Segoe UI', system-ui, sans-serif";
+  var MONO = "'SF Mono', 'Menlo', monospace";
+
+  function setup(canvas) {
+    var dpr = window.devicePixelRatio || 1;
+    var r = canvas.getBoundingClientRect();
+    canvas.width = r.width * dpr;
+    canvas.height = r.height * dpr;
+    var ctx = canvas.getContext('2d');
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    return { ctx: ctx, w: r.width, h: r.height };
+  }
+  function rr(ctx, x, y, w, h, rad) {
+    rad = Math.min(rad, h / 2, w / 2);
+    ctx.beginPath();
+    ctx.moveTo(x + rad, y);
+    ctx.arcTo(x + w, y, x + w, y + h, rad);
+    ctx.arcTo(x + w, y + h, x, y + h, rad);
+    ctx.arcTo(x, y + h, x, y, rad);
+    ctx.arcTo(x, y, x + w, y, rad);
+    ctx.closePath();
+  }
+  function ease(t) { return 1 - Math.pow(1 - t, 3); }
+  function hexA(hex, a) {
+    var n = parseInt(hex.slice(1), 16);
+    return 'rgba(' + (n >> 16) + ',' + ((n >> 8) & 255) + ',' + (n & 255) + ',' + a + ')';
+  }
+
+  /* ---------- HEDIS bar chart ---------- */
+  var measures = [
+    { label: 'Diabetes HbA1c Control',      cur: 71,   tgt: 80, pts: '312 pts', status: 'BEHIND',   color: C.amber },
+    { label: 'Colorectal Cancer Screening', cur: 68,   tgt: 75, pts: '428 pts', status: 'BEHIND',   color: C.amber },
+    { label: 'Breast Cancer Screening',     cur: 84,   tgt: 85, pts: '203 pts', status: 'CLOSE',    color: C.cyan },
+    { label: 'CHF Readmission (lower = better)', cur: 12.4, tgt: 15, pts: '156 pts', status: 'ON TRACK', color: C.emerald, inv: true },
+    { label: 'Depression Screening',        cur: 58,   tgt: 75, pts: '521 pts', status: 'CRITICAL', color: C.red },
+    { label: 'Medication Adherence',        cur: 79,   tgt: 82, pts: '289 pts', status: 'CLOSE',    color: C.cyan },
+    { label: 'Preventive Care Visit',       cur: 83,   tgt: 85, pts: '341 pts', status: 'CLOSE',    color: C.cyan },
+    { label: 'Blood Pressure Control',      cur: 66,   tgt: 74, pts: '198 pts', status: 'BEHIND',   color: C.amber }
+  ];
+  var hedis = setup(document.getElementById('hedisChart'));
+
+  function drawHedis(t) {
+    var ctx = hedis.ctx, W = hedis.w, H = hedis.h;
+    ctx.clearRect(0, 0, W, H);
+    var rowH = H / measures.length;
+    var labelW = 168;
+    var rightW = 196;
+    var barX = labelW, barW = W - labelW - rightW;
+    var pillW = 66;
+
+    measures.forEach(function (m, i) {
+      var cy = rowH * i + rowH / 2;
+      // label
+      ctx.font = '500 10.5px ' + FONT;
+      ctx.fillStyle = C.muted;
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(m.label, 0, cy);
+
+      // track
+      var bh = 9;
+      ctx.fillStyle = 'rgba(26,52,80,0.55)';
+      rr(ctx, barX, cy - bh / 2, barW, bh, 4.5); ctx.fill();
+
+      // bar
+      var frac = (m.cur / 100) * ease(t);
+      if (frac > 0.001) {
+        ctx.fillStyle = hexA(m.color, 0.85);
+        rr(ctx, barX, cy - bh / 2, barW * frac, bh, 4.5); ctx.fill();
+      }
+
+      // target marker
+      var tx = barX + barW * (m.tgt / 100);
+      ctx.strokeStyle = C.text;
+      ctx.globalAlpha = 0.75;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(tx, cy - 8); ctx.lineTo(tx, cy + 8);
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+
+      // right side: current %
+      var rx = barX + barW + 12;
+      ctx.font = '700 11.5px ' + FONT;
+      ctx.fillStyle = m.color;
+      ctx.fillText((m.cur * Math.min(1, ease(t) * 1.15)).toFixed(m.inv ? 1 : 0) + '%', rx, cy);
+
+      // patient count
+      ctx.font = '500 10px ' + FONT;
+      ctx.fillStyle = C.dim;
+      ctx.fillText(m.pts, rx + 46, cy);
+
+      // status pill
+      var px = W - pillW;
+      ctx.fillStyle = hexA(m.color, 0.13);
+      rr(ctx, px, cy - 8, pillW, 16, 8); ctx.fill();
+      ctx.strokeStyle = hexA(m.color, 0.4);
+      ctx.lineWidth = 1;
+      rr(ctx, px + 0.5, cy - 7.5, pillW - 1, 15, 7.5); ctx.stroke();
+      ctx.font = '700 8px ' + FONT;
+      ctx.fillStyle = m.color;
+      ctx.textAlign = 'center';
+      ctx.fillText(m.status, px + pillW / 2, cy + 0.5);
+      ctx.textAlign = 'left';
+    });
+  }
+
+  /* ---------- Readmission trend line chart ---------- */
+  var months = ['Aug', 'Sep', 'Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul'];
+  var before = [19.2, 20.4, 18.6, 21.1, 19.8, 20.6, 19.1, 18.7, 21.3, 20.1, 19.6, 20.2];
+  var after  = [18.0, 17.4, 16.8, 16.1, 15.6, 15.0, 14.6, 14.1, 13.6, 13.2, 12.8, 12.4];
+  var trend = setup(document.getElementById('trendChart'));
+
+  function drawTrend(t) {
+    var ctx = trend.ctx, W = trend.w, H = trend.h;
+    ctx.clearRect(0, 0, W, H);
+    var padL = 34, padR = 8, padT = 8, padB = 20;
+    var pw = W - padL - padR, ph = H - padT - padB;
+    var yMin = 10, yMax = 24;
+    function X(i) { return padL + pw * (i / (months.length - 1)); }
+    function Y(v) { return padT + ph * (1 - (v - yMin) / (yMax - yMin)); }
+
+    // gridlines + y labels
+    ctx.font = '500 9px ' + FONT;
+    ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+    [12, 16, 20, 24].forEach(function (v) {
+      ctx.strokeStyle = 'rgba(26,52,80,0.5)';
+      ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(padL, Y(v)); ctx.lineTo(W - padR, Y(v)); ctx.stroke();
+      ctx.fillStyle = C.dim;
+      ctx.fillText(v + '%', padL - 6, Y(v));
+    });
+
+    // x labels
+    ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+    months.forEach(function (m, i) {
+      ctx.fillStyle = C.dim;
+      ctx.fillText(m, X(i), H - padB + 6);
+    });
+
+    var n = months.length;
+    var prog = ease(t) * (n - 1);
+    var last = Math.min(n - 1, Math.floor(prog));
+    var fracPt = prog - last;
+
+    function pointAt(arr, i, f) {
+      if (f <= 0 || i >= n - 1) return { x: X(i), y: Y(arr[i]) };
+      return { x: X(i) + (X(i + 1) - X(i)) * f, y: Y(arr[i]) + (Y(arr[i + 1]) - Y(arr[i])) * f };
+    }
+    function tracePath(arr) {
+      ctx.moveTo(X(0), Y(arr[0]));
+      for (var i = 1; i <= last; i++) ctx.lineTo(X(i), Y(arr[i]));
+      if (last < n - 1 && fracPt > 0) {
+        var p = pointAt(arr, last, fracPt);
+        ctx.lineTo(p.x, p.y);
+      }
+    }
+    function endPoint(arr) {
+      return (last < n - 1 && fracPt > 0) ? pointAt(arr, last, fracPt) : { x: X(last), y: Y(arr[last]) };
+    }
+
+    // shaded gap between the two lines (faint emerald)
+    ctx.save();
+    ctx.beginPath();
+    tracePath(before);
+    var eA = endPoint(after);
+    ctx.lineTo(eA.x, eA.y);
+    for (var i = last; i >= 0; i--) ctx.lineTo(X(i), Y(after[i]));
+    ctx.closePath();
+    ctx.fillStyle = 'rgba(15,196,138,0.07)';
+    ctx.fill();
+    ctx.restore();
+
+    // before line (dashed amber)
+    ctx.save();
+    ctx.setLineDash([5, 4]);
+    ctx.strokeStyle = hexA(C.amber, 0.8);
+    ctx.lineWidth = 1.6;
+    ctx.beginPath(); tracePath(before); ctx.stroke();
+    ctx.restore();
+
+    // after line (solid cyan)
+    ctx.strokeStyle = C.cyan;
+    ctx.lineWidth = 2;
+    ctx.lineJoin = 'round';
+    ctx.beginPath(); tracePath(after); ctx.stroke();
+
+    // end dot + value on after line
+    if (t > 0.05) {
+      var ep = endPoint(after);
+      ctx.fillStyle = C.cyan;
+      ctx.beginPath(); ctx.arc(ep.x, ep.y, 3.2, 0, Math.PI * 2); ctx.fill();
+      if (t >= 1) {
+        ctx.font = '700 10px ' + FONT;
+        ctx.textAlign = 'right'; ctx.textBaseline = 'bottom';
+        ctx.fillStyle = C.emerald;
+        ctx.fillText('12.4%', ep.x - 2, ep.y - 6);
+      }
+    }
+  }
+
+  /* ---------- Donut ---------- */
+  var donutData = [
+    { v: 624000, c: C.emerald },
+    { v: 318000, c: C.cyan },
+    { v: 187000, c: C.violet },
+    { v: 111000, c: C.amber }
+  ];
+  var donutTotal = donutData.reduce(function (s, d) { return s + d.v; }, 0);
+  var donut = setup(document.getElementById('donutChart'));
+
+  function drawDonut(t) {
+    var ctx = donut.ctx, W = donut.w, H = donut.h;
+    ctx.clearRect(0, 0, W, H);
+    var cx = W / 2, cy = H / 2;
+    var R = Math.min(W, H) / 2 - 6;
+    var thick = 20;
+    var start = -Math.PI / 2;
+    var sweep = Math.PI * 2 * ease(t);
+
+    // background ring
+    ctx.strokeStyle = 'rgba(26,52,80,0.5)';
+    ctx.lineWidth = thick;
+    ctx.beginPath(); ctx.arc(cx, cy, R - thick / 2, 0, Math.PI * 2); ctx.stroke();
+
+    var a = start;
+    donutData.forEach(function (d) {
+      var segFull = (d.v / donutTotal) * Math.PI * 2;
+      var segEnd = Math.min(a + segFull, start + sweep);
+      if (segEnd > a) {
+        ctx.strokeStyle = d.c;
+        ctx.lineWidth = thick;
+        ctx.beginPath();
+        ctx.arc(cx, cy, R - thick / 2, a + 0.012, segEnd - 0.012);
+        ctx.stroke();
+      }
+      a += segFull;
+    });
+  }
+
+  /* ---------- Sparklines ---------- */
+  var sparks = [];
+  document.querySelectorAll('.spark').forEach(function (cv) {
+    var s = setup(cv);
+    s.data = cv.getAttribute('data-spark').split(',').map(Number);
+    s.color = cv.getAttribute('data-color');
+    sparks.push(s);
+  });
+
+  function drawSpark(s, t) {
+    var ctx = s.ctx, W = s.w, H = s.h;
+    ctx.clearRect(0, 0, W, H);
+    var d = s.data;
+    var mn = Math.min.apply(null, d), mx = Math.max.apply(null, d);
+    var range = (mx - mn) || 1;
+    var n = d.length;
+    var shown = Math.max(2, Math.ceil(ease(t) * n));
+    ctx.strokeStyle = s.color;
+    ctx.lineWidth = 1.5;
+    ctx.lineJoin = 'round';
+    ctx.beginPath();
+    for (var i = 0; i < shown; i++) {
+      var x = (W - 4) * (i / (n - 1)) + 2;
+      var y = 2 + (H - 4) * (1 - (d[i] - mn) / range);
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+    if (t >= 1) {
+      var lx = (W - 4) + 2, ly = 2 + (H - 4) * (1 - (d[n - 1] - mn) / range);
+      ctx.fillStyle = s.color;
+      ctx.beginPath(); ctx.arc(lx, ly, 2, 0, Math.PI * 2); ctx.fill();
+    }
+  }
+
+  /* ---------- Animation loop ---------- */
+  var DUR = 1000, t0 = null;
+  function frame(ts) {
+    if (t0 === null) t0 = ts;
+    var t = Math.min(1, (ts - t0) / DUR);
+    drawHedis(t);
+    drawTrend(t);
+    drawDonut(t);
+    sparks.forEach(function (s) { drawSpark(s, t); });
+    if (t < 1) requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+
+  window.addEventListener('resize', function () {
+    hedis = setup(document.getElementById('hedisChart'));
+    trend = setup(document.getElementById('trendChart'));
+    donut = setup(document.getElementById('donutChart'));
+    sparks = [];
+    document.querySelectorAll('.spark').forEach(function (cv) {
+      var s = setup(cv);
+      s.data = cv.getAttribute('data-spark').split(',').map(Number);
+      s.color = cv.getAttribute('data-color');
+      sparks.push(s);
+    });
+    drawHedis(1); drawTrend(1); drawDonut(1);
+    sparks.forEach(function (s) { drawSpark(s, 1); });
+  });
+})();
+</script>
