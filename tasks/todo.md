@@ -9,9 +9,9 @@
 ## S1 — Walking Skeleton (stories 17, 33, 34, 36)
 
 ### Phase A — Scaffold & infra
-- [ ] A1. Monorepo scaffold: apps/web (Vite+React+TS+Tailwind), apps/api (Express+TS); Vitest + Jest/Supertest
-- [ ] A2. Docker HAPI FHIR R4 + healthcheck (import retries until healthy)
-- [ ] A3. Import Maria Chen bundle + ~5 panel patients via $batch (500-Synthea deferred to S5)
+- [x] A1. Monorepo scaffold: apps/web (Vite+React+TS+Tailwind), apps/api (Express+TS); Vitest + Jest/Supertest
+- [x] A2. Docker HAPI FHIR R4 + healthcheck (import retries until healthy) — container has no shell for a Docker-native healthcheck; readiness verified by import script's host-side retry loop instead
+- [x] A3. Import Maria Chen bundle + ~5 panel patients via $batch (500-Synthea deferred to S5)
 
 ### Phase B — Backend core (test-first)
 - [ ] B1. SQLite: users + audit_log (no sessions table)
