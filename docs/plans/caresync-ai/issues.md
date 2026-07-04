@@ -98,12 +98,13 @@ agent graph (`requestAnimationFrame`, 5-node radial layout, bezier edges, partic
 flow, per-agent color, state machine IDLE→INIT→DISPATCH→ANALYZING→SYNTHESIZING→COMPLETE)
 visualizes the orchestration from S3. The last successful analysis per patient is
 cached; demo mode replays it instantly and deterministically, while an explicit
-"live" trigger forces a fresh Claude run and re-caches.
+"live" trigger forces a fresh model run (OpenAI `gpt-5.5` per GD13, revised
+2026-07-04) and re-caches.
 
 ### Acceptance criteria
 - [ ] Canvas graph animates through the state machine in sync with the streaming analysis; no chart library used.
 - [ ] Per-agent color identity is consistent from graph node → feed box → task card citation.
-- [ ] A cached analysis replays deterministically without a Claude call; the explicit live trigger forces a fresh run and updates the cache.
+- [ ] A cached analysis replays deterministically without a live model call; the explicit live trigger forces a fresh run and updates the cache.
 - [ ] Cached and live runs produce the same UI treatment (cache is real prior output, not a script).
 
 ### Blocked by
@@ -279,7 +280,7 @@ shipped and the honest-staging matrix).
 
 ### Acceptance criteria
 - [ ] Playwright E2E suite covers all three demo flows end-to-end against the running stack and passes green.
-- [ ] The three flows are demoable both live (fresh Claude run) and via cached replay (GD2).
+- [ ] The three flows are demoable both live (fresh model run) and via cached replay (GD2).
 - [ ] A pre-recorded 90-second demo video exists as the fallback and matches the live flow.
 - [ ] The judge deck reflects shipped functionality and the built/prototyped/envisioned staging (gate G4), not the original pitch claims.
 - [ ] The submission bundles the eval report (from S9) and the standards-conformance matrix.

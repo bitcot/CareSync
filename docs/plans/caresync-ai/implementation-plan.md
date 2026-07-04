@@ -244,7 +244,9 @@ Task writes are additive to HAPI and reversible via `docker compose down -v`. Re
 
 **Goal:** The signature W03 visual and the demo-reliability mechanism. A native **Canvas agent graph** (`requestAnimationFrame`, 5-node radial layout, bezier edges, particle flow, per-agent color, state machine `IDLE→INIT→DISPATCH→ANALYZING→SYNTHESIZING→COMPLETE`) visualizes the S3 orchestration; the last successful analysis per patient is **cached** and replays instantly/deterministically, while an explicit **live** trigger forces a fresh model run (OpenAI `gpt-5.5`) and re-caches.
 
-**Architecture:** Backend gains a small **analysis cache** — a SQLite `analysis_cache` table keyed by patient id holding the full validated result set (findings per agent + created Task ids + summary) as JSON, plus model version + timestamp. The analysis route reads: default request serves the cached result (replayed through the same SSE shape so the UI treatment is identical); `?live=1` runs the orchestrator, re-caches, and streams live. Frontend adds a `AgentGraph` canvas component driven by the analysis state machine, wired to the same stream events (node state transitions on `dispatch`/`finding`/`complete`). **No chart/animation library** — raw Canvas 2D + `requestAnimationFrame`, cleaned up on unmount.
+**Architecture:** Backend gains a small **analysis cache** — a SQLite `analysis_cache` table keyed by patient id holding the full validated result set (findings per agent + created Task **payloads**, not just ids + summary) as JSON, plus model version + timestamp. Storing Task content, not ids, keeps replay self-contained: S3's re-run deletes+recreates Tasks with fresh ids (B2), so a cache that held only ids could dangle to deleted Tasks. The analysis route reads: default request serves the cached result (replayed through the same SSE shape so the UI treatment is identical); `?live=1` runs the orchestrator, re-caches, and streams live. Frontend adds a `AgentGraph` canvas component driven by the analysis state machine, wired to the same stream events.
+
+**Event→state contract (resolve before B1).** S3's SSE vocabulary (Iteration 3, B3) is `finding`/`complete`/`task`, each tagged with `agentId` — there is **no `dispatch` or `synthesizing` event**. S4 does **not** add backend events; the client derives the state machine from the existing stream: `INIT`→`DISPATCH` on stream open (all four agent nodes pending), `ANALYZING` per node on its first `agentId`-tagged `finding`/`token`, `SYNTHESIZING` on the first event with `agentId: actionPlanner`, `COMPLETE` on the final `complete`. This derivation is the "documented event sequence" B1's test asserts against — write it down as a fixture. (If a demo needs crisper node timing later, adding an explicit `dispatch` event is an S3-orchestrator change, out of S4 scope.) **No chart/animation library** — raw Canvas 2D + `requestAnimationFrame`, cleaned up on unmount.
 
 **Tech Stack (delta):** SQLite `analysis_cache` (better-sqlite3, JSON column) · `?live=1` query flag on the existing route · one Canvas 2D component (`requestAnimationFrame`, bezier, particles) — no dependency.
 
@@ -252,18 +254,18 @@ Task writes are additive to HAPI and reversible via `docker compose down -v`. Re
 
 ### Phase A — Analysis cache (backend, test-first)
 
-- [ ] **A1. `analysis_cache` schema + migrate.** Table `(patient_id PK, result_json, model_version, created_ts)`; idempotent migrate at boot (matches the S1 migrate pattern). Persist the **validated** result (post-citation-gate) so replay can never surface a dropped citation.
+- [ ] **A1. `analysis_cache` schema + migrate.** Table `(patient_id PK, result_json, model_version, created_ts)`; idempotent migrate at boot (matches the S1 migrate pattern). Persist the **validated** result (post-citation-gate) so replay can never surface a dropped citation. `result_json` holds the full findings-per-agent set + Task **payloads** (not just ids) + summary, so replay is self-contained and can't reference a deleted Task.
   - *ponytail:* one row per patient (last successful run), overwritten on re-run — no history table (YAGNI until a "compare runs" feature exists).
-  - *Test:* write-then-read round-trips the full result; overwrite replaces.
+  - *Test:* write-then-read round-trips the full result (including Task payloads); overwrite replaces.
 
-- [ ] **A2. Cache-aware analysis route.** On `POST /:id/analysis`: if `?live=1` → run orchestrator, persist to cache, stream live; else → if a cache row exists, **replay it** as the same `finding`/`task`/`complete` SSE events (optionally paced for the streaming feel); if no cache, fall back to a live run + cache.
-  - *Domain rule:* cached analysis replays deterministically without a live model call; explicit live trigger forces a fresh run and re-caches (S4 acceptance); cache is real prior output, not a script (GD2).
-  - *Test (Supertest):* seed a cache row → default request replays it with **zero** agent invocations (stub agent asserts not-called); `?live=1` invokes the (stub) orchestrator and updates the row.
+- [ ] **A2. Cache-aware analysis route.** On `POST /:id/analysis`: if `?live=1` → run orchestrator, persist to cache, stream live; else → if a cache row exists, **replay it** as the same `finding`/`task`/`complete` SSE events; if no cache, fall back to a live run + cache. Replay must re-emit in the **same phased order** live produces — three parallel agents' events, then the Action Planner's — tagged with the same `agentId`s, so the canvas animates through the identical state machine (not a single burst). Pacing between events is cosmetic; the ordering is not.
+  - *Domain rule:* cached analysis replays deterministically without a live model call; explicit live trigger forces a fresh run and re-caches (S4 acceptance); cache is real prior output, not a script (GD2); cached and live share UI treatment, which requires matching event order (C2).
+  - *Test (Supertest):* (a) seed a cache row → default request replays it with **zero** agent invocations (stub agent asserts not-called) and the replayed events carry the same `agentId`s in the same phased order as live; (b) `?live=1` invokes the (stub) orchestrator and updates the row; (c) **cold cache** (no row) → default request runs the (stub) orchestrator exactly once and the row now exists.
 
 ### Phase B — Agent-graph canvas (frontend)
 
-- [ ] **B1. Analysis state machine (client).** A small reducer/hook mapping stream events → graph state (`IDLE→INIT→DISPATCH→ANALYZING→SYNTHESIZING→COMPLETE`) and per-node status (Orchestrator + 4 agents). Pure and unit-testable.
-  - *Test (Vitest):* the documented event sequence drives the states in order; per-agent nodes flip to ANALYZING/COMPLETE on their events.
+- [ ] **B1. Analysis state machine (client).** A small reducer/hook mapping stream events → graph state (`IDLE→INIT→DISPATCH→ANALYZING→SYNTHESIZING→COMPLETE`) and per-node status (Orchestrator + 4 agents), per the **Event→state contract** above (derived from `finding`/`complete`/`task` + `agentId` — no `dispatch` event exists). Pure and unit-testable.
+  - *Test (Vitest):* the documented event sequence (the fixture from the Event→state contract) drives the states in order; per-agent nodes flip to ANALYZING on their first tagged event and COMPLETE on their `complete`; `SYNTHESIZING` fires on the first `actionPlanner` event.
 
 - [ ] **B2. `AgentGraph` Canvas component (W03, mockup fidelity).** Native Canvas: 5-node radial layout (Orchestrator center + 4 agents), bezier edges, particle flow along active edges, per-agent color identity **consistent with the feed boxes and Task citation chips**, animated via `requestAnimationFrame` and torn down on unmount. Placed above the feeds grid per `reference-materials/caresync-ai.html`, closing W03's last deviation.
   - *Domain rule:* no chart library (GD10); per-agent color consistent graph→feed→task (S4 acceptance).
@@ -274,7 +276,7 @@ Task writes are additive to HAPI and reversible via `docker compose down -v`. Re
 
 ### Phase C — Verification
 - [ ] **C1.** `npm run test:api` (cache replay/live) + `npm run test:web` (state machine) green.
-- [ ] **C2. Frontend E2E (`frontend-e2e-verification`).** Cached replay renders graph→feeds→tasks with no live call; the live trigger forces a fresh run; both produce the same UI treatment (GD2).
+- [ ] **C2. Frontend E2E (`frontend-e2e-verification`).** Cached replay renders graph→feeds→tasks with no live call; the live trigger forces a fresh run; both produce the same UI treatment (GD2). Run with reduced-motion **disabled** in the browser context (the B2 `prefers-reduced-motion` path renders the final state statically and would not exercise the animation-in-sync assertion).
 
 ### Rollback / safety
 Cache is a single SQLite table — deletable without affecting HAPI; `docker compose down -v` + delete SQLite resets. A stale/absent cache degrades to a live run, never a fake. Canvas is presentational — no data risk.
