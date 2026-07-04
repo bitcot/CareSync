@@ -10,27 +10,38 @@
 
 > **Approved: yes (2026-07-04)** — ponytail pass applied. Implementing via `subagent-driven-development` on `feature/caresync-s2-single-agent-analysis`.
 
+> **GD13 revised 2026-07-04:** no Anthropic key available for D3 → agent provider switched to **OpenAI `gpt-5.5`** (Responses API), straight substitution under the same `runRiskAgent`/`AgentEvent` contract. Recorded in `plan.md` GD13 and Iteration 2 of `implementation-plan.md`. User-approved.
+
 ### Phase A — Agent foundation & contracts (backend, test-first)
-- [ ] A1. Add `@anthropic-ai/sdk` + `ANTHROPIC_API_KEY` (.env.example); module-level `new Anthropic()` + `MODEL='claude-sonnet-5'` (GD13) — no factory module
-- [ ] A2. Citation validator — **Seam 2**, pure module (TDD): in-bundle citation passes, fabricated dropped/flagged (GD11)
-- [ ] A3. `FhirReadService.getPatientBundle()` → `{resources, validIds}` via one audited `Patient/$everything`; `validIds` derived from resources (test vs HAPI)
+- [x] A1 (revised). Swap `@anthropic-ai/sdk` → `openai`; `OPENAI_API_KEY` (.env.example); `MODEL='gpt-5.5'` (GD13 revised) — no factory module; client built lazily on first use, not at module load (see E3 below)
+- [x] A2. Citation validator — **Seam 2**, pure module (TDD): in-bundle citation passes, fabricated dropped/flagged (GD11)
+- [x] A3. `FhirReadService.getPatientBundle()` → `{resources, validIds}` via one audited `Patient/$everything`; `validIds` derived from resources (test vs HAPI)
 
 ### Phase B — Risk agent service + SSE (backend, test-first)
-- [ ] B1. `runRiskAgent(bundle)` (plain fn — no interface until S3): Claude Sonnet 5 structured output `{riskScore, riskLevel, flags[{text,fhirResourceId}], readmissionProbability}`; parse tested with a mocked client
-- [ ] B2. `POST /api/patients/:id/analysis` SSE route (`runAgent` defaulted param, stubbable): stream findings, **validate every fhirResourceId against the bundle before emit**, audit the read; wire into index.ts
+- [x] B1 (revised). `runRiskAgent(bundle)` (plain fn — no interface until S3): **OpenAI `gpt-5.5`** structured output `{riskScore, riskLevel, flags[{text,fhirResourceId}], readmissionProbability}`; parse tested with a mocked OpenAI client. Same event contract — B2/C1/C2 untouched.
+- [x] B2. `POST /api/patients/:id/analysis` SSE route (`runAgent` defaulted param, stubbable): stream findings, **validate every fhirResourceId against the bundle before emit**, audit the read; wired into index.ts
   - *Boundary test (S2 acceptance):* stub agent → 1 in-bundle + 1 fabricated citation → only the valid one returned; all returned citations resolve in the bundle
 
 ### Phase C — Frontend: Run Analysis + streaming Risk feed
-- [ ] C1. `streamAnalysis()` in api/client.ts via `fetch` ReadableStream (auth header), parse SSE events
-- [ ] C2. PatientDetail: **Run Analysis** button + one Risk feed box (mockup `#runLabel`/`.feed`), streamed text + validated citation chips
+- [x] C1. `streamAnalysis()` in api/client.ts via `fetch` ReadableStream (auth header), parse SSE events
+- [x] C2. PatientDetail: **Run Analysis** button + one Risk feed box (mockup `#runLabel`/`.feed`), streamed text + validated citation chips
   - *Deviations recorded:* other 3 feed boxes idle placeholders (S3); agent-graph canvas omitted (S4)
 
 ### Phase D — Verification (Seam 2 + E2E)
-- [ ] D1. `npm run test:api` + `npm run test:web` green
-- [ ] D2. Playwright E2E (`frontend-e2e-verification`): Coordinator → Maria → Run Analysis → feed streams → validated finding + citation renders
-- [ ] D3. Live-call evidence vs real Claude Sonnet 5 (structured output + real streaming; fabricated citation dropped end-to-end) — recorded, labeled *live*
+- [x] D1. `npm run test:api` (49/49) + `npm run test:web` (14/14) green
+- [x] D2. Playwright E2E (`frontend-e2e-verification`): Coordinator → Maria → Run Analysis → feed streams → validated finding + citation renders. `apps/web/e2e/patient-analysis.spec.ts`. Evidence: packaged UI/local-mock for the stream path (route-intercepted), live-local-stack for login/nav.
+- [x] D3 (revised). **Live** call vs real OpenAI `gpt-5.5`: real SSE run against Maria — ~70 streamed tokens, 9 findings, all 9 `fhirResourceId`s independently verified against a fresh `$everything` fetch (all valid, `droppedCount:0`); fabrication-drop then proven by running the *real* `validateCitations` against those 9 live flags + 1 synthetic fabricated one → 9 valid / 1 dropped. Full detail in `implementation-plan.md` Iteration 2, D3.
 
-**Rollback (S2):** additive, no DB migration; unset `ANTHROPIC_API_KEY` disables analysis (explicit error, not a fake result). Full reset as S1.
+### Post-review fixes (2026-07-04) — `verification-before-completion` + `code-review`
+- [x] E1. SSE route had no error handling around the agent loop (client hang + possible process crash on agent failure) — try/catch + `error` SSE event.
+- [x] E2. Narration `token` stream bypassed GD11 citation validation — `redactUnvalidatedCitations` + `createNarrationBuffer` (Seam 2, `citationValidator.ts`), wired into `analysis.ts`.
+- [x] E3. `new OpenAI()` at module import time crashed the whole API at boot with no key — made lazy; `jest.setup.ts` placeholder-key workaround deleted (no longer needed).
+- [x] E4. Duplicated `PatientBundle`/`AgentFlag` types (Standards) — each now exported once and imported, not redeclared.
+- Full detail + evidence: `implementation-plan.md` Iteration 2 "Post-review fixes", `docs/plans/caresync-ai/verification.md` §7, `docs/plans/caresync-ai/review.md` "Post-review update". `npm run test:api`: 61/61 (was 49/49).
+
+**S2 status: all phases complete (A–D), post-review fixes E1–E4 complete.** `verification-before-completion` and `code-review` both passed. Ready for `finishing-a-development-branch`.
+
+**Rollback (S2):** additive, no DB migration; unset `OPENAI_API_KEY` disables analysis (explicit error, not a fake result — true as of E3; wasn't before it). Full reset as S1.
 
 ---
 
