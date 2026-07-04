@@ -36,9 +36,18 @@ export function getAssignedPanel(): Promise<PanelPatient[]> {
   return apiFetch('/api/patients/assigned');
 }
 
+export interface TaskSummary {
+  id: string;
+  title: string;
+  priority: 'critical' | 'high' | 'medium';
+  due: string;
+  status: string;
+}
+
 export interface PatientDetail {
   patient: { id: string; name: string; gender: string; birthDate: string };
   conditions: Array<{ id: string; code: string; display: string }>;
+  tasks: TaskSummary[];
 }
 
 export function getPatient(id: string): Promise<PatientDetail> {

@@ -49,6 +49,8 @@ describe('patients routes', () => {
     expect(res.status).toBe(200);
     expect(res.body.patient.name).toBe('Maria Chen');
     expect(res.body.conditions.length).toBeGreaterThan(0);
+    expect(res.body.tasks).toHaveLength(2);
+    expect(res.body.tasks[0]).toMatchObject({ title: expect.any(String), priority: expect.any(String), status: 'Open' });
   });
 
   it('GET /api/patients/:id is denied for a Social Worker (non-SDOH clinical read)', async () => {

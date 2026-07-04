@@ -24,6 +24,31 @@ export interface ConditionSummary {
   display: string;
 }
 
+export type TaskPriority = 'critical' | 'high' | 'medium';
+
+export interface TaskSummary {
+  id: string;
+  title: string;
+  priority: TaskPriority;
+  due: string;
+  status: string;
+}
+
+const FHIR_PRIORITY_TO_DISPLAY: Record<string, TaskPriority> = {
+  stat: 'critical',
+  urgent: 'high',
+  asap: 'high',
+  routine: 'medium',
+};
+
+const FHIR_STATUS_TO_DISPLAY: Record<string, string> = {
+  requested: 'Open',
+  accepted: 'Open',
+  'in-progress': 'In progress',
+  completed: 'Done',
+  cancelled: 'Cancelled',
+};
+
 export interface PanelEntry {
   id: string;
   name: string;
@@ -96,6 +121,20 @@ export class FhirReadService {
       id: e.resource.id,
       code: e.resource.code?.coding?.[0]?.code,
       display: e.resource.code?.text ?? e.resource.code?.coding?.[0]?.display,
+    }));
+  }
+
+  async getTasks(actor: AuthTokenPayload, patientId: string): Promise<TaskSummary[]> {
+    const resource = `Task/${patientId}`;
+    this.guard(actor, 'clinical', resource);
+    const bundle = await this.fhirFetch<FhirBundle<any>>(`/Task?subject=Patient/${patientId}`);
+    writeAudit(this.db, { actor: actor.id, action: 'read', fhirResource: resource, outcome: 'success' });
+    return (bundle.entry ?? []).map((e) => ({
+      id: e.resource.id,
+      title: e.resource.description,
+      priority: FHIR_PRIORITY_TO_DISPLAY[e.resource.priority] ?? 'medium',
+      due: e.resource.restriction?.period?.end,
+      status: FHIR_STATUS_TO_DISPLAY[e.resource.status] ?? 'Open',
     }));
   }
 

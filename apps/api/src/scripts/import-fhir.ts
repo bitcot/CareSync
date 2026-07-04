@@ -105,15 +105,23 @@ function riskAssessmentResource(p: SeedPatient) {
   };
 }
 
+const TASK_PRIORITY_TO_FHIR: Record<SeedPatient['tasks'][number]['priority'], string> = {
+  critical: 'stat',
+  high: 'urgent',
+  medium: 'routine',
+};
+
 function taskResource(patientId: string, t: SeedPatient['tasks'][number]) {
   return {
     resourceType: 'Task',
     id: t.id,
     status: 'requested',
     intent: 'order',
+    priority: TASK_PRIORITY_TO_FHIR[t.priority],
     description: t.description,
     for: { reference: `Patient/${patientId}` },
     authoredOn: new Date().toISOString(),
+    restriction: { period: { end: new Date(Date.now() + t.dueInDays * 24 * 60 * 60 * 1000).toISOString() } },
   };
 }
 

@@ -13,11 +13,12 @@ export function createPatientsRouter(fhirService: FhirReadService): Router {
 
   router.get('/:id', async (req, res) => {
     try {
-      const [patient, conditions] = await Promise.all([
+      const [patient, conditions, tasks] = await Promise.all([
         fhirService.getPatient(req.auth!, req.params.id),
         fhirService.getConditions(req.auth!, req.params.id),
+        fhirService.getTasks(req.auth!, req.params.id),
       ]);
-      res.json({ patient, conditions });
+      res.json({ patient, conditions, tasks });
     } catch (err) {
       if (err instanceof ScopeDeniedError) {
         res.status(403).json({ error: err.message });

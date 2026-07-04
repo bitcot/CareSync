@@ -1,7 +1,14 @@
 import { useQuery } from '@tanstack/react-query';
 import { useParams, Link } from 'react-router-dom';
-import { getPatient } from '../api/client';
+import { getPatient, type TaskSummary } from '../api/client';
 import { ageSexLabel } from '../lib/patient';
+import { PRIORITY_LABEL, dueLabel } from '../lib/task';
+
+const PRIORITY_CLASS: Record<TaskSummary['priority'], string> = {
+  critical: 'text-red bg-red-dim border-red',
+  high: 'text-amber bg-amber-dim border-amber',
+  medium: 'text-violet bg-violet-dim border-violet',
+};
 
 export function PatientDetail() {
   const { id } = useParams<{ id: string }>();
@@ -32,7 +39,7 @@ export function PatientDetail() {
           </div>
 
           <h2 className="text-section text-text mb-2">Active Conditions</h2>
-          <div className="border border-border rounded-card overflow-hidden">
+          <div className="border border-border rounded-card overflow-hidden mb-6">
             {data.conditions.map((condition) => (
               <div key={condition.id} className="px-4 py-3 border-b border-border last:border-b-0 bg-surface">
                 <p className="text-body text-text">{condition.display}</p>
@@ -42,6 +49,33 @@ export function PatientDetail() {
               </div>
             ))}
           </div>
+
+          <div className="flex items-center gap-2 mb-2">
+            <h2 className="text-section text-text">Tasks</h2>
+            <span className="text-xs font-bold text-cyan bg-cyan-dim border border-cyan rounded-pill px-2.5 py-0.5">
+              {data.tasks.length} open
+            </span>
+          </div>
+          {data.tasks.length === 0 && <p className="text-body text-text-muted">No open tasks.</p>}
+          {data.tasks.map((task) => (
+            <div key={task.id} className="bg-surface-raised border border-border rounded-card p-2.5 mb-2">
+              <div className="flex items-center justify-between mb-1.5">
+                <span
+                  className={`text-[9px] font-bold tracking-wide rounded-pill border px-2 py-0.5 ${PRIORITY_CLASS[task.priority]}`}
+                >
+                  {PRIORITY_LABEL[task.priority]}
+                </span>
+                <span className="text-xs text-text-muted">Due: {dueLabel(task.due)}</span>
+              </div>
+              <p className="text-body font-bold text-text mb-1.5">{task.title}</p>
+              <div className="flex items-center justify-between">
+                <span className="font-mono text-[10.5px] text-text-dim">Task/{task.id}</span>
+                <span className="text-xs font-semibold text-text-muted border border-border-light rounded-pill px-2 py-px">
+                  {task.status}
+                </span>
+              </div>
+            </div>
+          ))}
         </div>
       )}
     </div>

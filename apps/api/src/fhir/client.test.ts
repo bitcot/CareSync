@@ -44,6 +44,19 @@ describe('FhirReadService', () => {
     expect(patient.name).toBe('Maria Chen');
   });
 
+  it('lets a Coordinator read Maria Chen tasks with title, priority, and due date', async () => {
+    const tasks = await service.getTasks(coordinator, 'maria-chen');
+    expect(tasks).toHaveLength(2);
+    const medrec = tasks.find((t) => t.id === 'maria-chen-task-medrec');
+    expect(medrec).toMatchObject({ title: 'Medication reconciliation follow-up', priority: 'high', status: 'Open' });
+    expect(new Date(medrec!.due).toString()).not.toBe('Invalid Date');
+    expect(tasks.map((t) => t.priority)).toEqual(expect.arrayContaining(['high', 'medium']));
+  });
+
+  it('denies a Social Worker reading tasks (non-SDOH clinical read)', async () => {
+    await expect(service.getTasks(socialWorker, 'maria-chen')).rejects.toBeInstanceOf(ScopeDeniedError);
+  });
+
   it('returns the assigned panel with risk score, task count, and list-row display fields', async () => {
     const panel = await service.getAssignedPanel(coordinator);
     const maria = panel.find((p) => p.id === 'maria-chen');

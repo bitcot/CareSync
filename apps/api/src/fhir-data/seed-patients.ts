@@ -23,7 +23,7 @@ export interface SeedPatient {
   sdohPositive?: { id: string; note: string };
   encounter?: { id: string; conditionId: string; dischargedHoursAgo: number };
   riskScore: number;
-  tasks: Array<{ id: string; description: string }>;
+  tasks: Array<{ id: string; description: string; priority: 'critical' | 'high' | 'medium'; dueInDays: number }>;
 }
 
 const HOUR_MS = 60 * 60 * 1000;
@@ -50,8 +50,8 @@ export const MARIA_CHEN: SeedPatient = {
   encounter: { id: 'maria-chen-chf-admit', conditionId: 'maria-chen-chf', dischargedHoursAgo: 48 },
   riskScore: 87,
   tasks: [
-    { id: 'maria-chen-task-housing', description: 'SDOH referral: housing navigator' },
-    { id: 'maria-chen-task-medrec', description: 'Medication reconciliation follow-up' },
+    { id: 'maria-chen-task-housing', description: 'SDOH referral: housing navigator', priority: 'medium', dueInDays: 2 },
+    { id: 'maria-chen-task-medrec', description: 'Medication reconciliation follow-up', priority: 'high', dueInDays: 0 },
   ],
 };
 
@@ -63,7 +63,7 @@ export const PANEL_PATIENTS: SeedPatient[] = [
     birthDate: '1962-11-03',
     conditions: [{ id: 'james-okafor-copd', system: 'ICD-10', code: 'J44.9', display: 'Chronic obstructive pulmonary disease, unspecified' }],
     riskScore: 62,
-    tasks: [{ id: 'james-okafor-task-followup', description: 'Pulmonology follow-up scheduling' }],
+    tasks: [{ id: 'james-okafor-task-followup', description: 'Pulmonology follow-up scheduling', priority: 'high', dueInDays: 1 }],
   },
   {
     id: 'linda-torres',
@@ -72,7 +72,7 @@ export const PANEL_PATIENTS: SeedPatient[] = [
     birthDate: '1970-02-19',
     conditions: [{ id: 'linda-torres-ckd', system: 'ICD-10', code: 'N18.3', display: 'Chronic kidney disease, stage 3' }],
     riskScore: 71,
-    tasks: [{ id: 'linda-torres-task-labs', description: 'Repeat basic metabolic panel' }],
+    tasks: [{ id: 'linda-torres-task-labs', description: 'Repeat basic metabolic panel', priority: 'medium', dueInDays: 3 }],
   },
   {
     id: 'robert-kim',
@@ -93,7 +93,7 @@ export const PANEL_PATIENTS: SeedPatient[] = [
       { id: 'angela-diaz-depression', system: 'ICD-10', code: 'F33.1', display: 'Major depressive disorder, recurrent, moderate' },
     ],
     riskScore: 58,
-    tasks: [{ id: 'angela-diaz-task-bp', description: 'Blood pressure recheck in 2 weeks' }],
+    tasks: [{ id: 'angela-diaz-task-bp', description: 'Blood pressure recheck in 2 weeks', priority: 'medium', dueInDays: 14 }],
   },
   {
     id: 'samuel-wright',
@@ -103,8 +103,8 @@ export const PANEL_PATIENTS: SeedPatient[] = [
     conditions: [{ id: 'samuel-wright-chf', system: 'ICD-10', code: 'I50.9', display: 'Heart failure, unspecified' }],
     riskScore: 79,
     tasks: [
-      { id: 'samuel-wright-task-weight', description: 'Daily weight monitoring check-in' },
-      { id: 'samuel-wright-task-diet', description: 'Sodium-restricted diet education' },
+      { id: 'samuel-wright-task-weight', description: 'Daily weight monitoring check-in', priority: 'high', dueInDays: 0 },
+      { id: 'samuel-wright-task-diet', description: 'Sodium-restricted diet education', priority: 'medium', dueInDays: 5 },
     ],
   },
 ];
