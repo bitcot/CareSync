@@ -55,7 +55,16 @@ export type AnalysisGraphAction =
 /** Pure reducer: `AnalysisGraphState + AnalysisGraphAction → AnalysisGraphState`. */
 export function analysisGraphReducer(state: AnalysisGraphState, action: AnalysisGraphAction): AnalysisGraphState {
   if (action.event === 'start') {
-    return state.graphState === 'idle' ? { ...state, graphState: 'init' } : state;
+    // A new run is beginning — reset EVERYTHING, regardless of the current
+    // state, so a second/Nth run in the same session (e.g. cached view then
+    // "Run live" to compare) re-animates from scratch instead of staying
+    // frozen on the prior run's fully-complete state. Fresh `nodes` object
+    // (not the shared `initialAnalysisGraphState.nodes` reference) so a later
+    // dispatch can't alias — and mutate through — the initial constant.
+    return {
+      graphState: 'init',
+      nodes: { risk: 'pending', careGap: 'pending', sdoh: 'pending', actionPlanner: 'pending' },
+    };
   }
 
   if (action.event === 'done') {

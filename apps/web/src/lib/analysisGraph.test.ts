@@ -140,4 +140,26 @@ describe('analysisGraphReducer', () => {
     expect(afterFirstEvent.graphState).toBe('dispatch');
     expect(afterFirstEvent.nodes.risk).toBe('analyzing');
   });
+
+  it('fully resets on start after a completed run, so a second run animates instead of staying frozen', () => {
+    // Drive the first run to completion: graph complete, all four nodes complete.
+    const snapshots = runFixture(FIXTURE);
+    const completed = snapshots['done'];
+    expect(completed.graphState).toBe('complete');
+    expect(completed.nodes).toEqual({ risk: 'complete', careGap: 'complete', sdoh: 'complete', actionPlanner: 'complete' });
+
+    // Second run begins: `start` must reset EVERYTHING, not no-op from 'complete'.
+    const reset = analysisGraphReducer(completed, { event: 'start' });
+    expect(reset.graphState).toBe('init');
+    expect(reset.nodes).toEqual({ risk: 'pending', careGap: 'pending', sdoh: 'pending', actionPlanner: 'pending' });
+
+    // And the second run's events advance from that fresh state (not frozen on complete).
+    const afterFirstEvent = analysisGraphReducer(reset, { event: 'token', agentId: 'risk' });
+    expect(afterFirstEvent.graphState).toBe('dispatch');
+    expect(afterFirstEvent.nodes.risk).toBe('analyzing');
+    expect(afterFirstEvent.nodes.careGap).toBe('pending');
+
+    // Resetting must not alias the shared initial constant's nodes object.
+    expect(reset.nodes).not.toBe(initialAnalysisGraphState.nodes);
+  });
 });
