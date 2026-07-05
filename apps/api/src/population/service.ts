@@ -2,27 +2,18 @@ import Database from 'better-sqlite3';
 import { AuthTokenPayload } from '../auth/jwt';
 import { writeAudit } from '../db/audit';
 import { CRITICAL_RISK_THRESHOLD } from '../fhir-data/population';
-import { FhirReadService, PopulationRiskProfile } from '../fhir/client';
+import { DirectorOnlyError, FhirReadService, PopulationRiskProfile } from '../fhir/client';
 
-/**
- * `hasScope` (auth/scopes.ts) does not gate this: both director AND
- * coordinator hold clinical+demographic scope, since both need patient-level
- * clinical reads for their own screens. The population *aggregate* view is a
- * separate, role-level rule — Director only — so it's enforced here rather
- * than in `hasScope`, with its own denial audit. Mirrors `ScopeDeniedError`
- * (fhir/client.ts) → 403 pattern used by the other routes.
- */
-export class DirectorOnlyError extends Error {
-  constructor(role: string) {
-    super(`Role '${role}' cannot access population aggregates (Director-only)`);
-    this.name = 'DirectorOnlyError';
-  }
-}
+// Re-exported so existing importers (routes/population.ts) don't need to
+// change their import path — `DirectorOnlyError` itself now lives in
+// fhir/client.ts (S6 A1 reuses it for task-assignment's Director-only rule;
+// see that file's class doc for why it isn't expressible via `hasScope`).
+export { DirectorOnlyError };
 
 function assertDirector(actor: AuthTokenPayload, db: Database.Database, resource: string): void {
   if (actor.role !== 'director') {
     writeAudit(db, { actor: actor.id, action: 'read', fhirResource: resource, outcome: 'denied' });
-    throw new DirectorOnlyError(actor.role);
+    throw new DirectorOnlyError(actor.role, 'access population aggregates');
   }
   // No audit row here on the "allowed" branch — the actual population read
   // that follows (FhirReadService.getPopulationRiskProfile) writes its own

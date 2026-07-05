@@ -11,6 +11,23 @@ export class ScopeDeniedError extends Error {
   }
 }
 
+/**
+ * Role-level (not domain-level) denial: `hasScope`/`guard` below check
+ * per-domain access (demographic/clinical/sdoh), but director AND coordinator
+ * both hold clinical scope, so a Director-only action (e.g. S6 task
+ * assignment, S5 population aggregates) can't be expressed as a missing
+ * domain. This is the one shared class for that "role above domain" case —
+ * `population/service.ts`'s `assertDirector` was the first caller and
+ * originally defined this locally; it now imports it from here so there is
+ * still exactly one Director-only error type, not two parallel ones.
+ */
+export class DirectorOnlyError extends Error {
+  constructor(role: string, action: string) {
+    super(`Role '${role}' cannot ${action} (Director-only)`);
+    this.name = 'DirectorOnlyError';
+  }
+}
+
 export interface PatientSummary {
   id: string;
   name: string;
@@ -34,6 +51,14 @@ export interface TaskSummary {
   status: string;
 }
 
+// S6 A3 — TaskSummary plus the two fields the subscription webhook needs to
+// route a notification: which patient the Task is for, and which coordinator
+// (app `users.id`, via the logical `owner.identifier` reference) now owns it.
+export interface TaskWithOwner extends TaskSummary {
+  patientId?: string;
+  ownerId?: string;
+}
+
 const FHIR_PRIORITY_TO_DISPLAY: Record<string, TaskPriority> = {
   stat: 'critical',
   urgent: 'high',
@@ -54,6 +79,40 @@ const ACTION_PLANNER_PRIORITY_TO_FHIR: Record<string, string> = {
 // Every CareSync-authored Task carries this tag so replacePatientTasks can
 // scope deletes to exactly the Tasks it created, never a seed/Synthea Task.
 const CARESYNC_TASK_TAG = { system: 'https://caresync.demo/fhir/tags', code: 'ai-generated-task' } as const;
+
+// S6 A1 — Task.owner identifier system for assignment. A *logical* reference
+// (`{ identifier: { system, value } }`) rather than a literal
+// `{ reference: 'Practitioner/{id}' }`: this POC has no Practitioner
+// resources in HAPI, and HAPI enforces referential integrity on literal
+// references by default (confirmed against the local instance — POSTing a
+// Task with `owner.reference` pointing at a nonexistent Practitioner is
+// rejected with HAPI-1094 "not found"). An identifier-only reference has
+// nothing to resolve, so HAPI accepts it, and `coordinatorId` (the app's own
+// `users.id`, not a FHIR id) round-trips exactly as assigned.
+const COORDINATOR_OWNER_IDENTIFIER_SYSTEM = 'https://caresync.demo/fhir/coordinators';
+
+/**
+ * S6 A3 — maps a raw FHIR Task resource (as pushed by HAPI's subscription
+ * webhook — see fhir/subscription.ts's `payload: 'application/fhir+json'`
+ * note for why the webhook receives the full resource body, not just an id)
+ * to the shape `routes/events.ts` needs: which patient it's for and which
+ * coordinator (app `users.id`, via the logical `owner.identifier` reference
+ * `assignTask` writes) now owns it. A standalone function, not a service
+ * method — the webhook already has the resource in hand and needs no
+ * further FHIR read (and thus no `writeAudit` call; the assignment itself
+ * was already audited by `assignTask`).
+ */
+export function mapTaskResource(task: any): TaskWithOwner {
+  return {
+    id: task.id,
+    title: task.description,
+    priority: FHIR_PRIORITY_TO_DISPLAY[task.priority] ?? 'medium',
+    due: task.restriction?.period?.end,
+    status: FHIR_STATUS_TO_DISPLAY[task.status] ?? 'Open',
+    patientId: task.for?.reference?.split('/')[1],
+    ownerId: task.owner?.identifier?.value,
+  };
+}
 
 export interface ActionPlannerTaskInput {
   title: string;
@@ -355,6 +414,34 @@ export class FhirReadService {
     });
     writeAudit(this.db, { actor: actor.id, action: 'create', fhirResource: `Task/${created.id}`, outcome: 'success' });
     return { id: created.id };
+  }
+
+  /**
+   * S6 A1 — Director-scoped Task assignment: sets `Task.owner` to a logical
+   * reference to `coordinatorId` (see COORDINATOR_OWNER_IDENTIFIER_SYSTEM)
+   * via a read-modify-PUT (FHIR's standard full-resource "update"), mirroring
+   * `createTask`'s guard-then-write-then-audit shape. Director-only rather
+   * than scope-gated: both director and coordinator hold 'clinical' scope
+   * (see DirectorOnlyError doc), so this can't be expressed as a missing
+   * domain — the same role-level exception `population/service.ts` uses.
+   */
+  async assignTask(actor: AuthTokenPayload, taskId: string, coordinatorId: string): Promise<{ id: string; owner: string }> {
+    const resource = `Task/${taskId}`;
+    if (actor.role !== 'director') {
+      writeAudit(this.db, { actor: actor.id, action: 'update', fhirResource: resource, outcome: 'denied' });
+      throw new DirectorOnlyError(actor.role, 'assign tasks');
+    }
+
+    const task = await this.fhirFetch<Record<string, unknown>>(`/${resource}`);
+    task.owner = { identifier: { system: COORDINATOR_OWNER_IDENTIFIER_SYSTEM, value: coordinatorId } };
+
+    await this.fhirFetch(`/${resource}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/fhir+json' },
+      body: JSON.stringify(task),
+    });
+    writeAudit(this.db, { actor: actor.id, action: 'update', fhirResource: resource, outcome: 'success' });
+    return { id: taskId, owner: coordinatorId };
   }
 
   /**

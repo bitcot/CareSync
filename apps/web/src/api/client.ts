@@ -198,3 +198,84 @@ export async function streamAnalysis(
     }
   }
 }
+
+export interface AssignedTaskEvent {
+  id: string;
+  title: string;
+  priority: string;
+  due?: string;
+  status: string;
+  patientId?: string;
+  ownerId?: string;
+}
+
+/**
+ * S6 B1 — subscribes to `/api/events`, the real-time relay. Uses `fetch` +
+ * a stream reader (same framing as `streamAnalysis` above), not
+ * `EventSource` — `EventSource` can't send the `Authorization` header this
+ * bearer-gated route requires. Reconnects (after a short delay) on stream
+ * end/error so a dropped connection recovers without user action, per the
+ * plan's "reconnect re-establishes" rollback note; the in-memory relay hub
+ * has nothing to replay, so any event that fired while disconnected is
+ * simply missed — acceptable for this POC's single-connection demo flow.
+ *
+ * Returns an unsubscribe function that stops the read loop and any pending
+ * reconnect.
+ */
+export function subscribeToEvents(handlers: { onAssignment?: (task: AssignedTaskEvent) => void }): () => void {
+  let stopped = false;
+  let reconnectTimer: ReturnType<typeof setTimeout> | undefined;
+
+  async function connectOnce(): Promise<void> {
+    const token = localStorage.getItem(TOKEN_KEY);
+    const res = await fetch(`${API_BASE_URL}/api/events`, {
+      headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+    });
+    if (!res.ok || !res.body) return;
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done || stopped) break;
+      buffer += decoder.decode(value, { stream: true });
+
+      let frameEnd: number;
+      while ((frameEnd = buffer.indexOf('\n\n')) !== -1) {
+        const frame = buffer.slice(0, frameEnd);
+        buffer = buffer.slice(frameEnd + 2);
+
+        let event = '';
+        let data = '';
+        for (const line of frame.split('\n')) {
+          if (line.startsWith('event: ')) event = line.slice('event: '.length);
+          else if (line.startsWith('data: ')) data = line.slice('data: '.length);
+        }
+        if (event === 'assignment' && data) handlers.onAssignment?.(JSON.parse(data));
+      }
+    }
+  }
+
+  async function loop(): Promise<void> {
+    while (!stopped) {
+      try {
+        await connectOnce();
+      } catch {
+        // Connection dropped or never opened — reconnect below.
+      }
+      if (stopped) return;
+      await new Promise<void>((resolve) => {
+        reconnectTimer = setTimeout(resolve, 3000);
+      });
+    }
+  }
+
+  loop();
+
+  return () => {
+    stopped = true;
+    if (reconnectTimer) clearTimeout(reconnectTimer);
+  };
+}
