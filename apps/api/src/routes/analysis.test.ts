@@ -4,9 +4,10 @@ import request from 'supertest';
 import { migrate } from '../db';
 import { seedDemoUsers, DEMO_PASSWORD } from '../db/seed';
 import { createAuthRouter } from './auth';
-import { createAnalysisRouter } from './analysis';
+import { createAnalysisRouter, AnalysisResultJson } from './analysis';
 import { FhirReadService } from '../fhir/client';
 import { AgentEvent, RiskOutput, CareGapOutput, SdohOutput, ActionPlannerOutput } from '../agents/agent';
+import { readAnalysisCache, writeAnalysisCache } from '../db/analysisCache';
 
 // Deliberately NOT 'maria-chen': fhir/client.test.ts (B2) already exercises
 // Task create/replace against 'maria-chen', and Jest runs different test
@@ -115,8 +116,45 @@ function buildApp(db: Database.Database, stub: (bundle: any) => AsyncIterable<Ag
   app.use(express.json());
   const fhirService = new FhirReadService(db, FHIR_BASE_URL);
   app.use('/api/auth', createAuthRouter(db));
-  app.use('/api/patients', createAnalysisRouter(fhirService, stub));
+  app.use('/api/patients', createAnalysisRouter(fhirService, stub, db));
   return app;
+}
+
+// Mirrors exactly what stubOrchestrate's SURVIVING (post-citation-gate) output
+// looks like once run through the live route — used to seed a cache row that
+// looks like real prior output (GD2), not an invented shape, so replay tests
+// exercise the same resultJson a live run would actually persist.
+function cachedResultFromStub(taskId: string): AnalysisResultJson {
+  return {
+    risk: {
+      findings: [{ text: 'CHF diagnosis drives elevated readmission risk', fhirResourceId: VALID_ID }],
+      complete: { riskScore: 87, riskLevel: 'critical', readmissionProbability: 0.7, findingCount: 1, droppedCount: 1 },
+    },
+    careGap: {
+      findings: [{ gapType: 'screening', description: 'Overdue HbA1c recheck', urgency: 'high', fhirResourceId: VALID_ID }],
+      complete: { findingCount: 1, droppedCount: 0 },
+    },
+    sdoh: {
+      findings: [
+        { domain: 'transportation', finding: 'No reliable transportation to follow-up visits', severity: 'moderate', fhirResourceId: VALID_ID },
+      ],
+      complete: { findingCount: 1, droppedCount: 0, referralsNeeded: ['transportation-assistance'] },
+    },
+    actionPlanner: {
+      tasks: [
+        {
+          id: taskId,
+          reference: `Task/${taskId}`,
+          title: 'Schedule cardiology follow-up',
+          description: 'Address CHF readmission risk',
+          priority: 'high',
+          dueInDays: 5,
+          fhirResources: [VALID_ID],
+        },
+      ],
+      complete: { findingCount: 1, droppedCount: 1 },
+    },
+  };
 }
 
 async function loginAs(app: express.Express, email: string): Promise<string> {
@@ -263,16 +301,21 @@ describe('analysis routes (B3 — orchestrated SSE stream + citation validation 
   });
 
   it('leaves only the second run’s Tasks in HAPI after calling the route twice (no dupes)', async () => {
+    // S4 A2: a default (non-`?live=1`) POST now serves a cache replay once a
+    // row exists, so a second bare POST after run1 would never reach
+    // replacePatientTasks at all. `?live=1` forces both runs live — which is
+    // exactly the real-orchestration path this test exists to verify (B2's
+    // replace guarantee) — independent of caching.
     const run1App = buildApp(db, twoValidTasksAgent());
     const token1 = await loginAs(run1App, 'coordinator@caresync.demo');
-    await request(run1App).post(`/api/patients/${PATIENT_ID}/analysis`).set('Authorization', `Bearer ${token1}`);
+    await request(run1App).post(`/api/patients/${PATIENT_ID}/analysis?live=1`).set('Authorization', `Bearer ${token1}`);
 
     const afterRun1 = await fetchOwnedTasks(PATIENT_ID);
     expect(afterRun1).toHaveLength(2);
 
     const run2App = buildApp(db, oneValidTaskAgent());
     const token2 = await loginAs(run2App, 'coordinator@caresync.demo');
-    await request(run2App).post(`/api/patients/${PATIENT_ID}/analysis`).set('Authorization', `Bearer ${token2}`);
+    await request(run2App).post(`/api/patients/${PATIENT_ID}/analysis?live=1`).set('Authorization', `Bearer ${token2}`);
 
     const afterRun2 = await fetchOwnedTasks(PATIENT_ID);
     expect(afterRun2).toHaveLength(1);
@@ -322,5 +365,112 @@ describe('analysis routes (B3 — orchestrated SSE stream + citation validation 
   it('requires auth', async () => {
     const res = await request(app).post(`/api/patients/${PATIENT_ID}/analysis`);
     expect(res.status).toBe(401);
+  });
+});
+
+describe('analysis routes — cache-aware live/replay (S4 A2)', () => {
+  let db: Database.Database;
+
+  beforeEach(() => {
+    db = new Database(':memory:');
+    migrate(db);
+    seedDemoUsers(db);
+  });
+
+  it('(a) replays a seeded cache row with zero agent invocations, in the same phased agentId order as a live run', async () => {
+    const orchestratorSpy = jest.fn(stubOrchestrate);
+    const cachedApp = buildApp(db, orchestratorSpy);
+    writeAnalysisCache(db, {
+      patientId: PATIENT_ID,
+      resultJson: cachedResultFromStub('cached-task-1'),
+      modelVersion: 'gpt-5.5',
+      createdTs: '2020-01-01T00:00:00.000Z',
+    });
+
+    const token = await loginAs(cachedApp, 'coordinator@caresync.demo');
+    const res = await request(cachedApp).post(`/api/patients/${PATIENT_ID}/analysis`).set('Authorization', `Bearer ${token}`);
+
+    expect(res.status).toBe(200);
+    expect(orchestratorSpy).not.toHaveBeenCalled();
+
+    const events = parseSse(res.text);
+    // Same phased order a live run produces: each agent's own finding(s)
+    // before its own complete, then actionPlanner's task(s) before its
+    // complete, ending in `done` — risk, careGap, sdoh, actionPlanner.
+    const ordered = events.filter((e) => e.event !== 'token');
+    expect(ordered.map((e) => [e.event, e.data.agentId ?? null])).toEqual([
+      ['finding', 'risk'],
+      ['complete', 'risk'],
+      ['finding', 'careGap'],
+      ['complete', 'careGap'],
+      ['finding', 'sdoh'],
+      ['complete', 'sdoh'],
+      ['task', 'actionPlanner'],
+      ['complete', 'actionPlanner'],
+      ['done', null],
+    ]);
+    expect(ordered.find((e) => e.event === 'task')!.data).toMatchObject({
+      id: 'cached-task-1',
+      title: 'Schedule cardiology follow-up',
+    });
+
+    // Replay must not mutate the cache row it just served.
+    const row = readAnalysisCache(db, PATIENT_ID);
+    expect(row!.createdTs).toBe('2020-01-01T00:00:00.000Z');
+  });
+
+  it('(b) ?live=1 always invokes the orchestrator and overwrites the cache row, even when one already exists', async () => {
+    const orchestratorSpy = jest.fn(stubOrchestrate);
+    const liveApp = buildApp(db, orchestratorSpy);
+    writeAnalysisCache(db, {
+      patientId: PATIENT_ID,
+      resultJson: cachedResultFromStub('stale-task-id'),
+      modelVersion: 'stale-model',
+      createdTs: '2020-01-01T00:00:00.000Z',
+    });
+
+    const token = await loginAs(liveApp, 'coordinator@caresync.demo');
+    const res = await request(liveApp)
+      .post(`/api/patients/${PATIENT_ID}/analysis?live=1`)
+      .set('Authorization', `Bearer ${token}`);
+
+    expect(res.status).toBe(200);
+    expect(orchestratorSpy).toHaveBeenCalledTimes(1);
+
+    const events = parseSse(res.text);
+    const taskEvent = events.find((e) => e.event === 'task');
+    expect(taskEvent).toBeDefined();
+    expect(taskEvent!.data.id).not.toBe('stale-task-id');
+
+    const row = readAnalysisCache(db, PATIENT_ID);
+    expect(row).not.toBeNull();
+    expect(row!.modelVersion).toBe('gpt-5.5');
+    expect(row!.createdTs).not.toBe('2020-01-01T00:00:00.000Z');
+    const resultJson = row!.resultJson as AnalysisResultJson;
+    expect(resultJson.actionPlanner.tasks).toHaveLength(1);
+    expect(resultJson.actionPlanner.tasks[0].id).toBe(taskEvent!.data.id);
+
+    await deleteTask(taskEvent!.data.id);
+  });
+
+  it('(c) cold cache: default request falls back to exactly one live run and populates the cache row', async () => {
+    const orchestratorSpy = jest.fn(stubOrchestrate);
+    const coldApp = buildApp(db, orchestratorSpy);
+    expect(readAnalysisCache(db, PATIENT_ID)).toBeNull();
+
+    const token = await loginAs(coldApp, 'coordinator@caresync.demo');
+    const res = await request(coldApp).post(`/api/patients/${PATIENT_ID}/analysis`).set('Authorization', `Bearer ${token}`);
+
+    expect(res.status).toBe(200);
+    expect(orchestratorSpy).toHaveBeenCalledTimes(1);
+
+    const row = readAnalysisCache(db, PATIENT_ID);
+    expect(row).not.toBeNull();
+
+    const events = parseSse(res.text);
+    const taskEvent = events.find((e) => e.event === 'task');
+    expect(taskEvent).toBeDefined();
+
+    await deleteTask(taskEvent!.data.id);
   });
 });
