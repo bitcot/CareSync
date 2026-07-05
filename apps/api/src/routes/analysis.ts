@@ -20,32 +20,43 @@ function writeSseEvent(res: Response, event: string, data: unknown): void {
 }
 
 /**
- * A2 (S4) — everything needed to replay the exact same `finding`/`task`/
- * `complete` SSE sequence a live run produced, without re-touching HAPI or
- * the LLM. Per bundle-driven agent (risk/careGap/sdoh): the citation-gate-
- * SURVIVING findings (in emission order) plus that agent's `complete`
- * payload. For actionPlanner: the full created-Task payloads (id/reference/
+ * A2 (S4) — everything needed to replay the exact same `token`/`finding`/
+ * `task`/`complete` SSE sequence a live run produced, without re-touching
+ * HAPI or the LLM. Per bundle-driven agent (risk/careGap/sdoh): the accumulated
+ * SAFE (GD11-redacted, as-emitted) narration text, the citation-gate-SURVIVING
+ * findings (in emission order), plus that agent's `complete` payload. For
+ * actionPlanner: its narration, the full created-Task payloads (id/reference/
  * title/description/priority/assignTo/dueInDays/fhirResources) — not just
  * ids — because S3's replacePatientTasks deletes+recreates Tasks with new
  * ids on every live run, so an id-only cache would dangle; plus its
- * `complete` payload. `agentId` is intentionally omitted from each entry
- * here (it's implied by the key) and re-added at emit time on both the live
- * and replay paths, so the two paths share one shape by construction.
+ * `complete` payload.
+ *
+ * `narration` holds only the SAFE text the live run actually emitted (the
+ * `safeText`/`remainder` values that already passed through
+ * `createNarrationBuffer`'s GD11 gate) — never the raw model `event.text` —
+ * so a replay can't leak an unvalidated citation the live path would have
+ * redacted. `agentId` is intentionally omitted from each entry here (it's
+ * implied by the key) and re-added at emit time on both the live and replay
+ * paths, so the two paths share one event shape by construction.
  */
 export interface AnalysisResultJson {
   risk: {
+    narration: string;
     findings: AgentFlag[];
     complete: { riskScore: number; riskLevel: string; readmissionProbability: number; findingCount: number; droppedCount: number };
   };
   careGap: {
+    narration: string;
     findings: { gapType: string; description: string; lastDone?: string; dueDate?: string; urgency: string; fhirResourceId: string }[];
     complete: { findingCount: number; droppedCount: number };
   };
   sdoh: {
+    narration: string;
     findings: { domain: string; finding: string; severity: string; fhirResourceId: string }[];
     complete: { findingCount: number; droppedCount: number; referralsNeeded: string[] };
   };
   actionPlanner: {
+    narration: string;
     tasks: {
       id: string;
       reference: string;
@@ -61,28 +72,49 @@ export interface AnalysisResultJson {
 }
 
 /**
- * Replays a cached `AnalysisResultJson` as the identical `finding`/`task`/
- * `complete` SSE sequence a live run would have produced — same phased
- * order (each agent's own findings before its own complete, actionPlanner
- * last), same `agentId` tagging — so the canvas (S4 Task B) can't tell the
- * two apart. No HAPI or LLM call on this path.
+ * Replays a cached `AnalysisResultJson` as the identical `token`/`finding`/
+ * `task`/`complete` SSE sequence a live run would have produced — same phased
+ * order (each agent narrates, then its findings, then its complete;
+ * actionPlanner last), same `agentId` tagging, same `{ agentId, text }`
+ * token payload shape — so the canvas AND the per-agent reasoning feed
+ * (`PatientDetail.tsx`, which renders accumulated `token` text) can't tell a
+ * replay from a live run. No HAPI or LLM call on this path.
+ *
+ * A live run streams an agent's narration in many small `token` chunks as it
+ * reasons; a replay emits the whole accumulated narration as one `token`
+ * event — the plan states pacing is cosmetic, only ordering is load-bearing,
+ * and the client accumulates `token` text either way. An empty (or absent,
+ * for a legacy row) narration emits no token event, matching a live run that
+ * produced no safe narration for that agent.
  */
 function replayCachedAnalysis(res: Response, result: AnalysisResultJson): void {
+  if (result.risk.narration) {
+    writeSseEvent(res, 'token', { agentId: 'risk', text: result.risk.narration });
+  }
   for (const finding of result.risk.findings) {
     writeSseEvent(res, 'finding', { agentId: 'risk', ...finding });
   }
   writeSseEvent(res, 'complete', { agentId: 'risk', ...result.risk.complete });
 
+  if (result.careGap.narration) {
+    writeSseEvent(res, 'token', { agentId: 'careGap', text: result.careGap.narration });
+  }
   for (const finding of result.careGap.findings) {
     writeSseEvent(res, 'finding', { agentId: 'careGap', ...finding });
   }
   writeSseEvent(res, 'complete', { agentId: 'careGap', ...result.careGap.complete });
 
+  if (result.sdoh.narration) {
+    writeSseEvent(res, 'token', { agentId: 'sdoh', text: result.sdoh.narration });
+  }
   for (const finding of result.sdoh.findings) {
     writeSseEvent(res, 'finding', { agentId: 'sdoh', ...finding });
   }
   writeSseEvent(res, 'complete', { agentId: 'sdoh', ...result.sdoh.complete });
 
+  if (result.actionPlanner.narration) {
+    writeSseEvent(res, 'token', { agentId: 'actionPlanner', text: result.actionPlanner.narration });
+  }
   for (const task of result.actionPlanner.tasks) {
     writeSseEvent(res, 'task', { agentId: 'actionPlanner', ...task });
   }
@@ -207,17 +239,26 @@ export function createAnalysisRouter(
     // row written on success is exactly what was streamed — not a
     // re-derivation that could drift from it.
     const resultJson: AnalysisResultJson = {
-      risk: { findings: [], complete: { riskScore: 0, riskLevel: 'low', readmissionProbability: 0, findingCount: 0, droppedCount: 0 } },
-      careGap: { findings: [], complete: { findingCount: 0, droppedCount: 0 } },
-      sdoh: { findings: [], complete: { findingCount: 0, droppedCount: 0, referralsNeeded: [] } },
-      actionPlanner: { tasks: [], complete: { findingCount: 0, droppedCount: 0 } },
+      risk: { narration: '', findings: [], complete: { riskScore: 0, riskLevel: 'low', readmissionProbability: 0, findingCount: 0, droppedCount: 0 } },
+      careGap: { narration: '', findings: [], complete: { findingCount: 0, droppedCount: 0 } },
+      sdoh: { narration: '', findings: [], complete: { findingCount: 0, droppedCount: 0, referralsNeeded: [] } },
+      actionPlanner: { narration: '', tasks: [], complete: { findingCount: 0, droppedCount: 0 } },
     };
+
+    // Accumulates ONLY the safe (GD11-redacted, actually-emitted) narration
+    // text per agent, so the cache captures exactly what streamed and a
+    // replay re-emits the same prose — never the raw model tokens.
+    const narrationText = new Map<AgentId, string>();
+    function appendNarration(agentId: AgentId, text: string): void {
+      narrationText.set(agentId, (narrationText.get(agentId) ?? '') + text);
+    }
 
     try {
       for await (const event of runAnalysis(bundle)) {
         if (event.type === 'token') {
           const safeText = narrationFor(event.agentId).push(event.text);
           if (safeText) {
+            appendNarration(event.agentId, safeText);
             writeSseEvent(res, 'token', { agentId: event.agentId, text: safeText });
           }
           continue;
@@ -225,6 +266,7 @@ export function createAnalysisRouter(
 
         const remainder = narrationFor(event.agentId).flush();
         if (remainder) {
+          appendNarration(event.agentId, remainder);
           writeSseEvent(res, 'token', { agentId: event.agentId, text: remainder });
         }
 
@@ -244,7 +286,7 @@ export function createAnalysisRouter(
             droppedCount: dropped.length,
           };
           writeSseEvent(res, 'complete', { agentId: 'risk', ...complete });
-          resultJson.risk = { findings: valid, complete };
+          resultJson.risk = { narration: narrationText.get('risk') ?? '', findings: valid, complete };
         } else if (event.agentId === 'careGap') {
           const { valid, dropped } = validateCitations(event.output.gaps, bundle.validIds);
           for (const gap of valid) {
@@ -252,7 +294,7 @@ export function createAnalysisRouter(
           }
           const complete = { findingCount: valid.length, droppedCount: dropped.length };
           writeSseEvent(res, 'complete', { agentId: 'careGap', ...complete });
-          resultJson.careGap = { findings: valid, complete };
+          resultJson.careGap = { narration: narrationText.get('careGap') ?? '', findings: valid, complete };
         } else if (event.agentId === 'sdoh') {
           const { valid, dropped } = validateCitations(event.output.barriers, bundle.validIds);
           for (const barrier of valid) {
@@ -260,7 +302,7 @@ export function createAnalysisRouter(
           }
           const complete = { findingCount: valid.length, droppedCount: dropped.length, referralsNeeded: event.output.referralsNeeded };
           writeSseEvent(res, 'complete', { agentId: 'sdoh', ...complete });
-          resultJson.sdoh = { findings: valid, complete };
+          resultJson.sdoh = { narration: narrationText.get('sdoh') ?? '', findings: valid, complete };
         } else {
           // actionPlanner — all-or-nothing per task (validateCitationList): a
           // task whose citations ALL drop must never reach HAPI. `valid` is
@@ -293,16 +335,24 @@ export function createAnalysisRouter(
 
           const complete = { findingCount: valid.length, droppedCount: dropped.length };
           writeSseEvent(res, 'complete', { agentId: 'actionPlanner', ...complete });
-          resultJson.actionPlanner = { tasks, complete };
+          resultJson.actionPlanner = { narration: narrationText.get('actionPlanner') ?? '', tasks, complete };
         }
       }
 
       // Every agent — including the Action Planner's Task-creation step —
       // has now fully finished. Persist this run (A2: cache-aware route) so
-      // the next non-live view of this patient replays it, then emit the one
-      // terminal signal a consumer (S4's web client) needs to know the whole
-      // run ended.
-      writeCache(db, { patientId, resultJson, modelVersion: MODEL, createdTs: new Date().toISOString() });
+      // the next non-live view of this patient replays it. This is
+      // best-effort: the real work (the streamed findings/tasks + the HAPI
+      // Task writes) already succeeded by this point, so a persistence hiccup
+      // must NOT flip an otherwise-successful run into the `error` path (which
+      // would hang the client's graph in `synthesizing` with no `done`). Log
+      // and continue to `done`; the only cost of a missed write is that the
+      // next non-live view re-runs live instead of replaying.
+      try {
+        writeCache(db, { patientId, resultJson, modelVersion: MODEL, createdTs: new Date().toISOString() });
+      } catch (err) {
+        console.error('analysis cache write failed (run still succeeded):', err);
+      }
       writeSseEvent(res, 'done', {});
     } catch {
       // The connection is already open (res.writeHead ran above) — an SSE

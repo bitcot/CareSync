@@ -127,24 +127,30 @@ function buildApp(
 // Mirrors exactly what stubOrchestrate's SURVIVING (post-citation-gate) output
 // looks like once run through the live route — used to seed a cache row that
 // looks like real prior output (GD2), not an invented shape, so replay tests
-// exercise the same resultJson a live run would actually persist.
+// exercise the same resultJson a live run would actually persist. `narration`
+// per agent matches the safe (emitted) token text stubOrchestrate streams —
+// each is a single short chunk that flushes whole through the GD11 buffer.
 function cachedResultFromStub(taskId: string): AnalysisResultJson {
   return {
     risk: {
+      narration: 'Reviewing chart...',
       findings: [{ text: 'CHF diagnosis drives elevated readmission risk', fhirResourceId: VALID_ID }],
       complete: { riskScore: 87, riskLevel: 'critical', readmissionProbability: 0.7, findingCount: 1, droppedCount: 1 },
     },
     careGap: {
+      narration: 'Checking preventive care gaps...',
       findings: [{ gapType: 'screening', description: 'Overdue HbA1c recheck', urgency: 'high', fhirResourceId: VALID_ID }],
       complete: { findingCount: 1, droppedCount: 0 },
     },
     sdoh: {
+      narration: 'Screening for social barriers...',
       findings: [
         { domain: 'transportation', finding: 'No reliable transportation to follow-up visits', severity: 'moderate', fhirResourceId: VALID_ID },
       ],
       complete: { findingCount: 1, droppedCount: 0, referralsNeeded: ['transportation-assistance'] },
     },
     actionPlanner: {
+      narration: 'Synthesizing worklist...',
       tasks: [
         {
           id: taskId,
@@ -398,24 +404,35 @@ describe('analysis routes — cache-aware live/replay (S4 A2)', () => {
     expect(orchestratorSpy).not.toHaveBeenCalled();
 
     const events = parseSse(res.text);
-    // Same phased order a live run produces: each agent's own finding(s)
-    // before its own complete, then actionPlanner's task(s) before its
-    // complete, ending in `done` — risk, careGap, sdoh, actionPlanner.
-    const ordered = events.filter((e) => e.event !== 'token');
-    expect(ordered.map((e) => [e.event, e.data.agentId ?? null])).toEqual([
+    // Same phased order a live run produces: each agent narrates (a `token`
+    // event), then its own finding(s), then its own complete; actionPlanner
+    // last (token → task → complete), ending in `done` — risk, careGap,
+    // sdoh, actionPlanner. The `token` frames are part of the replayed
+    // sequence now (narration parity, S4 C2/GD2), not filtered out.
+    expect(events.map((e) => [e.event, e.data.agentId ?? null])).toEqual([
+      ['token', 'risk'],
       ['finding', 'risk'],
       ['complete', 'risk'],
+      ['token', 'careGap'],
       ['finding', 'careGap'],
       ['complete', 'careGap'],
+      ['token', 'sdoh'],
       ['finding', 'sdoh'],
       ['complete', 'sdoh'],
+      ['token', 'actionPlanner'],
       ['task', 'actionPlanner'],
       ['complete', 'actionPlanner'],
       ['done', null],
     ]);
-    expect(ordered.find((e) => e.event === 'task')!.data).toMatchObject({
+    expect(events.find((e) => e.event === 'task')!.data).toMatchObject({
       id: 'cached-task-1',
       title: 'Schedule cardiology follow-up',
+    });
+    // Replayed token payload is byte-identical in shape to a live one
+    // (`{ agentId, text }`) and carries the stored safe narration.
+    expect(events.find((e) => e.event === 'token' && e.data.agentId === 'risk')!.data).toEqual({
+      agentId: 'risk',
+      text: 'Reviewing chart...',
     });
 
     // Replay must not mutate the cache row it just served.
@@ -534,6 +551,82 @@ describe('analysis routes — cache-aware live/replay (S4 A2)', () => {
     const taskEvent = events.find((e) => e.event === 'task');
     expect(taskEvent).toBeDefined();
 
+    await deleteTask(taskEvent!.data.id);
+  });
+
+  it('(f) captures live narration into the cache and replays it as byte-identical `token` events', async () => {
+    // Live run (?live=1) first — capture the token events it emits and let it
+    // persist the row — then a default request replays that row. The token
+    // events must match (agentId + text), proving the reasoning prose shows
+    // in the feed on a replay exactly as it did live (C2 / GD2), not a blank
+    // narration.
+    const liveApp = buildApp(db, stubOrchestrate);
+    const liveToken = await loginAs(liveApp, 'coordinator@caresync.demo');
+    const liveRes = await request(liveApp)
+      .post(`/api/patients/${PATIENT_ID}/analysis?live=1`)
+      .set('Authorization', `Bearer ${liveToken}`);
+    const liveTokens = parseSse(liveRes.text)
+      .filter((e) => e.event === 'token')
+      .map((e) => e.data);
+
+    // Sanity: the live run really did stream per-agent narration.
+    expect(liveTokens.length).toBeGreaterThan(0);
+    expect(liveTokens.map((t) => t.agentId).sort()).toEqual(['actionPlanner', 'careGap', 'risk', 'sdoh']);
+
+    // The persisted row captured that same safe narration per agent.
+    const row = readAnalysisCache(db, PATIENT_ID);
+    const stored = row!.resultJson as AnalysisResultJson;
+    expect(stored.risk.narration).toBe('Reviewing chart...');
+    expect(stored.careGap.narration).toBe('Checking preventive care gaps...');
+    expect(stored.sdoh.narration).toBe('Screening for social barriers...');
+    expect(stored.actionPlanner.narration).toBe('Synthesizing worklist...');
+
+    // Replay (default request) — its token events are identical in shape and
+    // content to the live ones (per agent; replay coalesces each agent's
+    // narration into one frame, which is what the live stub emits too here).
+    const replayApp = buildApp(db, stubOrchestrate);
+    const replayToken = await loginAs(replayApp, 'coordinator@caresync.demo');
+    const replayRes = await request(replayApp).post(`/api/patients/${PATIENT_ID}/analysis`).set('Authorization', `Bearer ${replayToken}`);
+    const replayTokens = parseSse(replayRes.text)
+      .filter((e) => e.event === 'token')
+      .map((e) => e.data);
+
+    expect(replayTokens).toEqual(liveTokens);
+
+    // Cleanup the Task the live run created (replay creates none).
+    const liveTaskEvent = parseSse(liveRes.text).find((e) => e.event === 'task');
+    await deleteTask(liveTaskEvent!.data.id);
+  });
+
+  it('(g) a cache-write failure does not sink an otherwise-successful run — `done` still fires', async () => {
+    // writeCache is best-effort: the stream + HAPI Task writes already
+    // succeeded by the time it runs, so a persistence throw must not flip the
+    // run into the `error`/no-`done` path (which would hang the graph in
+    // `synthesizing`). Inject a throwing writeCache and prove `done` fires,
+    // no `error` event, and the real work (task creation) still happened.
+    const orchestratorSpy = jest.fn(stubOrchestrate);
+    const throwingWriteCache = jest.fn(() => {
+      throw new Error('disk full');
+    });
+    const fhirService = new FhirReadService(db, FHIR_BASE_URL);
+    const app = express();
+    app.use(express.json());
+    app.use('/api/auth', createAuthRouter(db));
+    app.use('/api/patients', createAnalysisRouter(fhirService, orchestratorSpy, db, undefined, throwingWriteCache));
+
+    const token = await loginAs(app, 'coordinator@caresync.demo');
+    const res = await request(app).post(`/api/patients/${PATIENT_ID}/analysis?live=1`).set('Authorization', `Bearer ${token}`);
+
+    expect(res.status).toBe(200);
+    expect(throwingWriteCache).toHaveBeenCalledTimes(1);
+
+    const events = parseSse(res.text);
+    expect(events.find((e) => e.event === 'error')).toBeUndefined();
+    expect(events.find((e) => e.event === 'done')).toBeDefined();
+    expect(events[events.length - 1].event).toBe('done');
+
+    const taskEvent = events.find((e) => e.event === 'task');
+    expect(taskEvent).toBeDefined();
     await deleteTask(taskEvent!.data.id);
   });
 });
