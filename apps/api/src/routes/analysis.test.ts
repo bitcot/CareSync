@@ -438,6 +438,16 @@ describe('analysis routes — cache-aware live/replay (S4 A2)', () => {
     // Replay must not mutate the cache row it just served.
     const row = readAnalysisCache(db, PATIENT_ID);
     expect(row!.createdTs).toBe('2020-01-01T00:00:00.000Z');
+
+    // A successful replay is still a clinical read and must be audited,
+    // same as a live getPatientBundle read — the replay path skips HAPI but
+    // must not skip the audit trail S8's governance dashboard depends on.
+    const auditRows = db.prepare('SELECT * FROM audit_log ORDER BY id').all() as any[];
+    const successRows = auditRows.filter(
+      (r) => r.action === 'read' && r.fhir_resource === `Patient/${PATIENT_ID}/$everything` && r.outcome === 'success'
+    );
+    expect(successRows).toHaveLength(1);
+    expect(successRows[0]).toMatchObject({ actor: expect.any(String), outcome: 'success' });
   });
 
   it('(d) denies a Social Worker (no clinical scope) on the cache-replay path too, and audits the denial', async () => {

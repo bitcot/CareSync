@@ -6,6 +6,7 @@ import { orchestrate } from '../agents/orchestrator';
 import { AgentEvent, AgentId } from '../agents/agent';
 import { validateCitations, validateCitationList, createNarrationBuffer, NarrationBuffer, AgentFlag } from '../agents/citationValidator';
 import { readAnalysisCache, writeAnalysisCache, AnalysisCacheEntry, AnalysisCacheRow } from '../db/analysisCache';
+import { writeAudit } from '../db/audit';
 // All four agent modules currently export the same MODEL constant
 // ('gpt-5.5') — riskAgent's is used here as the single source of truth for
 // what gets recorded as `modelVersion` on the cache row.
@@ -169,9 +170,10 @@ export function createAnalysisRouter(
         // logging happens for this data. `assertScope` is the same guard
         // `getPatientBundle` runs internally, called directly so the
         // invariant can't drift between the live and replay code paths —
-        // it's a local role comparison (+ a denial audit write), no HAPI
-        // request, so calling it here doesn't cost the HAPI round-trip
-        // replay exists to avoid.
+        // it's a local role comparison, no HAPI request, so calling it here
+        // doesn't cost the HAPI round-trip replay exists to avoid. On
+        // success we write our own audit row (mirroring `getPatientBundle`'s
+        // guard-then-audit pattern) since `assertScope` only audits denials.
         try {
           fhirService.assertScope(req.auth!, 'clinical', `Patient/${patientId}/$everything`);
         } catch (err) {
@@ -181,6 +183,12 @@ export function createAnalysisRouter(
           }
           throw err;
         }
+        writeAudit(db, {
+          actor: req.auth!.id,
+          action: 'read',
+          fhirResource: `Patient/${patientId}/$everything`,
+          outcome: 'success',
+        });
 
         res.writeHead(200, {
           'Content-Type': 'text/event-stream',
