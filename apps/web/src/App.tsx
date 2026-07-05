@@ -4,6 +4,7 @@ import { RoleGuard } from './auth/RoleGuard';
 import { Login } from './pages/Login';
 import { PatientPanel } from './pages/PatientPanel';
 import { PatientDetail } from './pages/PatientDetail';
+import { Population } from './pages/Population';
 import { ComingSoon } from './pages/ComingSoon';
 
 function App() {
@@ -19,6 +20,14 @@ function App() {
       >
         <Route path="/panel" element={<PatientPanel />} />
         <Route path="/patients/:id" element={<PatientDetail />} />
+        <Route
+          path="/population"
+          element={
+            <RoleGuard role="director">
+              <Population />
+            </RoleGuard>
+          }
+        />
         <Route path="/coming-soon" element={<ComingSoon />} />
       </Route>
       <Route path="*" element={<Navigate to="/login" replace />} />
