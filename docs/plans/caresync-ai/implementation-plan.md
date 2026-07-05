@@ -363,27 +363,31 @@ Synthea data lives only in the disposable HAPI (`docker compose down -v` resets)
 
 ### Phase A — Assignment + Subscription + relay (backend, test-first)
 
-- [ ] **A1. Task assignment endpoint (audited).** `PATCH /api/tasks/:id/assign { coordinatorId }` → update the FHIR Task `owner` in HAPI via the S3 audited write client. Director-scoped.
+- [x] **A1. Task assignment endpoint (audited).** `PATCH /api/tasks/:id/assign { coordinatorId }` → update the FHIR Task `owner` in HAPI via the S3 audited write client. Director-scoped.
   - *Domain rule:* Director assigns a patient's tasks to a Coordinator (story 6); write audited.
   - *Test (Supertest vs test HAPI):* assignment sets Task.owner; reflected on read; audit row written.
+  - *Implementation note:* `Task.owner` is a **logical reference** (`{identifier:{system,value}}`), not a literal `Practitioner/{id}` reference — this POC has no Practitioner resources in HAPI, and HAPI rejects literal references it can't resolve. See `fhir/client.ts`'s `COORDINATOR_OWNER_IDENTIFIER_SYSTEM` doc comment.
 
-- [ ] **A2. FHIR Subscription bootstrap.** At boot, idempotently ensure a HAPI `Subscription` (rest-hook, criteria on Task create/update) pointing at our webhook URL. Record the honest-staging status if HAPI's rest-hook delivery needs config.
+- [x] **A2. FHIR Subscription bootstrap.** At boot, idempotently ensure a HAPI `Subscription` (rest-hook, criteria on Task create/update) pointing at our webhook URL. Record the honest-staging status if HAPI's rest-hook delivery needs config.
   - *Domain rule:* a real FHIR Subscription exists on HAPI with a rest-hook on Task changes (S6 acceptance, GD7).
   - *Test:* the Subscription resource exists in HAPI after boot with the expected criteria + endpoint.
+  - *Environment note:* stock HAPI ships rest-hook delivery OFF — `docker-compose.yml` now sets `hapi.fhir.subscription.resthook_enabled: "true"`. The callback URL must be reachable *from the HAPI container*, not the host — `SUBSCRIPTION_CALLBACK_URL` defaults to `http://host.docker.internal:4000/...`.
 
-- [ ] **A3. Webhook receiver + relay hub.** `POST /api/fhir/subscription-hook` (HAPI → us) resolves the changed Task and fans it out over an in-process SSE hub to the affected user's `/api/events` connections. `GET /api/events` (auth'd) registers a connection.
+- [x] **A3. Webhook receiver + relay hub.** `POST /api/fhir/subscription-hook` (HAPI → us) resolves the changed Task and fans it out over an in-process SSE hub to the affected user's `/api/events` connections. `GET /api/events` (auth'd) registers a connection.
   - *ponytail:* in-process `Map<userId, res[]>` hub — no external broker; **reuse the existing `writeSseEvent` helper from `routes/analysis.ts`** for framing, don't re-author SSE plumbing.
   - *Test (integration):* simulate a HAPI hook POST → an event is delivered to a registered `/api/events` connection for the assigned Coordinator (asserts the webhook→relay path).
+  - *Correction, discovered verifying against the real local HAPI (7.2.0):* a rest-hook Subscription with `channel.payload` set does **not** `POST` to the bare `channel.endpoint`. It mimics the triggering interaction's own verb and appends the resource path — a Task update delivers as `PUT {endpoint}/Task/{id}`. The webhook route matches `router.all('/subscription-hook{/*splat}', ...)` to catch this (and any other verb/shape); the resource's own `resourceType`/`id` come from the JSON body, not the URL. The route needs no re-read against HAPI: the body *is* the changed Task. HAPI has also been observed to deliver a single update's hook twice in quick succession — the client (B1) de-dupes by toast message rather than the route de-duplicating server-side.
 
 ### Phase B — Live client update (frontend)
 
-- [ ] **B1. Client event subscription + live queue update + notification.** Subscribe to `/api/events`; on a relevant Task change, update the Coordinator's queue in place and show an assignment notification. No manual refresh.
+- [x] **B1. Client event subscription + live queue update + notification.** Subscribe to `/api/events`; on a relevant Task change, update the Coordinator's queue in place and show an assignment notification. No manual refresh.
   - *Domain rule:* Coordinator notified when a Director assigns them a patient (story 18); queue updates live (S6 acceptance).
   - *Test (Vitest, mocked stream):* a relayed assignment event updates the queue and shows a notification.
+  - *Scope note:* no `M02` task queue exists yet (S7). The live-updating surface is `PatientPanel`/"My Patients" (W12) — its `assigned-panel` query is invalidated on a relayed event; the notification is a toast in `AppShell`, shown regardless of which page the Coordinator is on. Uses a `fetch`+stream reader (`subscribeToEvents`, mirroring `streamAnalysis`'s pattern), not `EventSource` — `EventSource` can't send the `Authorization` header this bearer-gated route requires.
 
 ### Phase C — Verification
-- [ ] **C1.** `npm run test:api` (assignment + webhook→relay integration) + `npm run test:web`.
-- [ ] **C2. Frontend E2E (`frontend-e2e-verification`).** Director assigns Maria's task → the Subscription fires → the Coordinator's view updates live + notification appears (visible without refresh). Confirm the Subscription firing is visible in logs/network.
+- [x] **C1.** `npm run test:api` (assignment + webhook→relay integration) + `npm run test:web`.
+- [x] **C2. Frontend E2E (`frontend-e2e-verification`).** Director assigns Maria's task → the Subscription fires → the Coordinator's view updates live + notification appears (visible without refresh). Confirm the Subscription firing is visible in logs/network.
 
 ### Rollback / safety
 Subscription + Tasks live in the disposable HAPI. The relay hub is in-memory (drops on restart, reconnect re-establishes). Assignment writes are audited and reversible. If HAPI rest-hook delivery can't be configured in the stock image, record it in `plan.md` §3 honest-staging (same class of note as SMART) — do not claim live Subscription delivery it doesn't do.

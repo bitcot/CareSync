@@ -143,10 +143,10 @@ clients over SSE/websocket, so the Coordinator's view updates live and shows an
 assignment notification — without a manual refresh.
 
 ### Acceptance criteria
-- [ ] A FHIR Subscription resource exists on HAPI with a rest-hook on Task changes.
-- [ ] Assigning a task updates the FHIR Task and fires the Subscription to the API webhook (visible in logs/network).
-- [ ] The webhook relays to the client over SSE/websocket; the Coordinator's queue updates live and shows a notification.
-- [ ] API-boundary test for assignment; an integration test asserting the webhook→relay path delivers the update.
+- [x] A FHIR Subscription resource exists on HAPI with a rest-hook on Task changes.
+- [x] Assigning a task updates the FHIR Task and fires the Subscription to the API webhook (visible in logs/network).
+- [x] The webhook relays to the client over SSE/websocket; the Coordinator's queue updates live and shows a notification. *(No `M02` task queue exists yet — S7's job. The live-updating surface today is `PatientPanel`/"My Patients" (W12); the notification is a toast.)*
+- [x] API-boundary test for assignment; an integration test asserting the webhook→relay path delivers the update.
 
 ### Blocked by
 - S3
