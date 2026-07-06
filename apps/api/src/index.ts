@@ -10,6 +10,7 @@ import { createGovernanceRouter } from './routes/governance';
 import { createTasksRouter } from './routes/tasks';
 import { createEventsRouter, createSubscriptionWebhookRouter } from './routes/events';
 import { createEventHub } from './routes/eventHub';
+import { createCdsHooksRouter } from './routes/cdsHooks';
 import { ensureTaskSubscription } from './fhir/subscription';
 import { orchestrate } from './agents/orchestrator';
 import { FhirReadService } from './fhir/client';
@@ -69,6 +70,9 @@ if (require.main === module) {
   const eventHub = createEventHub();
   app.use('/api/events', createEventsRouter(eventHub));
   app.use('/api/fhir', createSubscriptionWebhookRouter(eventHub));
+  // S10 A1 — CDS Hooks discovery. Different URL namespace by spec (NOT
+  // under /api) and deliberately not auth'd — see routes/cdsHooks.ts.
+  app.use('/cds-services', createCdsHooksRouter());
 
   app.listen(PORT, () => {
     console.log(`API listening on :${PORT}`);
