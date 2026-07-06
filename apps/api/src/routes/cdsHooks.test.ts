@@ -1,6 +1,6 @@
 import express from 'express';
 import request from 'supertest';
-import { createCdsHooksRouter } from './cdsHooks';
+import { createCdsHooksRouter, CDS_PATIENT_VIEW_SERVICE_ID } from './cdsHooks';
 
 function buildApp() {
   const app = express();
@@ -20,7 +20,7 @@ describe('CDS Hooks discovery route (S10 A1)', () => {
 
     const service = res.body.services[0];
     expect(service.hook).toBe('patient-view');
-    expect(service.id).toBe('caresync-patient-view');
+    expect(service.id).toBe(CDS_PATIENT_VIEW_SERVICE_ID);
     expect(typeof service.title).toBe('string');
     expect(service.title.length).toBeGreaterThan(0);
     expect(typeof service.description).toBe('string');
