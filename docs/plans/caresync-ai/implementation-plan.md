@@ -535,32 +535,33 @@ All reads over existing SQLite + HAPI — no new writable state. Parity/confiden
 
 ### Phase A — Labels + metric core (test-first)
 
-- [ ] **A1. Committed label file.** `data/eval/labels.json` — ground truth for ~5 hero + ~10 Synthea, rows structured so a clinician can review/override the Synthea rows later (GD8).
+- [x] **A1. Committed label file.** `data/eval/labels.json` — ground truth for ~5 hero + ~10 Synthea, rows structured so a clinician can review/override the Synthea rows later (GD8).
   - *Domain rule:* label file holds ground truth with clinician-overridable rows (S9 acceptance).
+  - *Deviation note:* no real Synthea data exists in this codebase (a disclosed S5 substitution) — the "~10 Synthea" rows are `pop-0001..pop-0010` from `population.ts`'s deterministic generator; "~5 curated hero" is all 6 of `ALL_PATIENTS` (Maria Chen + 5 panel patients).
 
-- [ ] **A2. Metric computation — Seam 4 (pure, TDD).** `computeMetrics(labels, findings)` → sensitivity/specificity/PPV (Care Gap + Risk), agreement (SDOH), qualitative notes (Action Planner).
+- [x] **A2. Metric computation — Seam 4 (pure, TDD).** `computeMetrics(labels, findings)` → sensitivity/specificity/PPV (Care Gap + Risk), agreement (SDOH), qualitative notes (Action Planner).
   - *Domain rule:* per-agent metrics per GD8; Action Planner is qualitative (synthesis, not classification).
   - *Test (Seam 4):* against a fixed label + findings fixture, the metrics match a known expected output exactly.
 
 ### Phase B — Harness + report
 
-- [ ] **B1. `npm run eval` harness.** Load labeled patients from HAPI → run the four agents (live or cached) over each → `computeMetrics` → write `docs/eval-report.md` (**with a mandatory error-analysis section**: misses + false positives) + a JSON summary.
+- [x] **B1. `npm run eval` harness.** Load labeled patients from HAPI → run the four agents (live or cached) over each → `computeMetrics` → write `docs/eval-report.md` (**with a mandatory error-analysis section**: misses + false positives) + a JSON summary.
   - *Domain rule:* report includes explicit error analysis (S9 acceptance, GD8 — this is the 4→5 lever); JSON summary consumed by the S8 tile.
   - *Verify:* `npm run eval` produces the report + JSON; the S8 eval tile renders the headline from it.
 
 ### Phase C — Verification
-- [ ] **C1.** Seam 4 unit test green; one full `npm run eval` run committed as evidence (labeled *dev-labeled baseline*).
-- [ ] **C2.** The S8 governance eval tile consumes the produced JSON (cross-slice check).
+- [x] **C1.** Seam 4 unit test green; one full `npm run eval` run committed as evidence (labeled *dev-labeled baseline*).
+- [x] **C2.** The S8 governance eval tile consumes the produced JSON (cross-slice check).
 
 ### Rollback / safety
 Read-only over HAPI + labels; outputs are generated files (`docs/eval-report.md` + JSON), regenerable. Ships explicitly as a **dev-labeled ~P6 4** baseline; clinician override of the Synthea rows upgrades to 5 with no code change (GD8).
 
 ### Definition of done (S9) — maps to `issues.md`
-- Committed label file with clinician-overridable rows (A1).
-- `npm run eval` runs agents over all labeled patients + computes per-agent metrics (A2, B1).
-- Report includes an explicit error-analysis section (B1).
-- JSON summary produced + consumed by the S8 tile (B1, C2).
-- Metric computation tested against a fixed fixture with known output — Seam 4 (A2).
+- [x] Committed label file with clinician-overridable rows (A1).
+- [x] `npm run eval` runs agents over all labeled patients + computes per-agent metrics (A2, B1).
+- [x] Report includes an explicit error-analysis section (B1).
+- [x] JSON summary produced + consumed by the S8 tile (B1, C2).
+- [x] Metric computation tested against a fixed fixture with known output — Seam 4 (A2).
 
 ---
 
