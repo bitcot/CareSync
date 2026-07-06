@@ -1,3 +1,5 @@
+import fs from 'fs';
+import path from 'path';
 import express from 'express';
 import Database from 'better-sqlite3';
 import request from 'supertest';
@@ -10,6 +12,11 @@ import { createGovernanceRouter } from './governance';
 import { FhirReadService } from '../fhir/client';
 
 const FHIR_BASE_URL = process.env.FHIR_BASE_URL ?? 'http://localhost:8080/fhir';
+
+// Same path governance/service.ts's getEvalSummary reads (repo root
+// docs/eval-report.json) — resolved the same way (4 dirs up from
+// src/routes), so this test can't drift from where the endpoint actually looks.
+const EVAL_REPORT_PATH = path.resolve(__dirname, '../../../../docs/eval-report.json');
 
 function buildApp(db: Database.Database) {
   const app = express();
@@ -289,6 +296,71 @@ describe('GET /api/governance/parity', () => {
 
   it('requires auth', async () => {
     const res = await request(app).get('/api/governance/parity');
+    expect(res.status).toBe(401);
+  });
+});
+
+// S8 B — tiny, stateless read of the S9 evaluation report JSON. S9 doesn't
+// exist yet in this branch, so this endpoint must behave honestly (`available:
+// false`, never throw/fabricate) until it does. Both branches are seeded by
+// directly writing/removing the real file at the exact path the service reads
+// (not a mock fs) — this is a stateless file-existence check, not a DB table,
+// so exercising the real filesystem is the simplest faithful test.
+describe('GET /api/governance/eval', () => {
+  let db: Database.Database;
+  let app: express.Express;
+
+  beforeEach(() => {
+    db = new Database(':memory:');
+    migrate(db);
+    seedDemoUsers(db);
+    app = buildApp(db);
+    fs.rmSync(EVAL_REPORT_PATH, { force: true });
+  });
+
+  afterEach(() => {
+    fs.rmSync(EVAL_REPORT_PATH, { force: true });
+  });
+
+  it('returns { available: false } when no S9 report file exists yet', async () => {
+    const token = await loginAs(app, 'director@caresync.demo');
+    const res = await request(app).get('/api/governance/eval').set('Authorization', `Bearer ${token}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ available: false });
+  });
+
+  it('returns { available: true, summary } with the parsed JSON when the report file exists', async () => {
+    fs.writeFileSync(EVAL_REPORT_PATH, JSON.stringify({ headline: 'Care Gap sensitivity 91%', generatedAt: '2026-07-05T00:00:00.000Z' }));
+
+    const token = await loginAs(app, 'director@caresync.demo');
+    const res = await request(app).get('/api/governance/eval').set('Authorization', `Bearer ${token}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({
+      available: true,
+      summary: { headline: 'Care Gap sensitivity 91%', generatedAt: '2026-07-05T00:00:00.000Z' },
+    });
+  });
+
+  it('returns { available: false } (not a 500) when the report file exists but is not valid JSON', async () => {
+    fs.writeFileSync(EVAL_REPORT_PATH, '{ not valid json');
+
+    const token = await loginAs(app, 'director@caresync.demo');
+    const res = await request(app).get('/api/governance/eval').set('Authorization', `Bearer ${token}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ available: false });
+  });
+
+  it('is denied for a Coordinator (Director-only)', async () => {
+    const token = await loginAs(app, 'coordinator@caresync.demo');
+    const res = await request(app).get('/api/governance/eval').set('Authorization', `Bearer ${token}`);
+    expect(res.status).toBe(403);
+  });
+
+  it('requires auth', async () => {
+    const res = await request(app).get('/api/governance/eval');
     expect(res.status).toBe(401);
   });
 });

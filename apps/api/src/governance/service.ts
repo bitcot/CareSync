@@ -1,3 +1,5 @@
+import fs from 'fs';
+import path from 'path';
 import Database from 'better-sqlite3';
 import { AuthTokenPayload } from '../auth/jwt';
 import { writeAudit, readAuditTrail, AuditTrailEntry } from '../db/audit';
@@ -275,4 +277,38 @@ export async function getParityMetrics(
     byRace: stratify(joined.map((j) => ({ group: j.demo?.race, riskScore: j.riskScore }))),
     byEthnicity: stratify(joined.map((j) => ({ group: j.demo?.ethnicity, riskScore: j.riskScore }))),
   };
+}
+
+// --- B — S9 eval headline tile -------------------------------------------
+
+// S8 B — exact path the B2 eval tile reads. S9 (the `npm run eval` harness)
+// doesn't exist yet on this branch; this constant documents the contract it
+// must honor: write its JSON summary to this repo-root path and the tile
+// picks it up with no further wiring. Resolved from `__dirname` (not
+// `process.cwd()`, which varies with the invoking workspace script) — both
+// `src/governance` (tsx/ts-jest) and the built `dist/governance` sit 4
+// directories below the repo root, so the same relative walk-up resolves
+// correctly either way.
+export const EVAL_REPORT_PATH = path.resolve(__dirname, '../../../../docs/eval-report.json');
+
+export interface EvalSummaryResult {
+  available: boolean;
+  summary?: unknown;
+}
+
+/**
+ * S8 B2 — Director-only, stateless read of the S9 evaluation report JSON.
+ * Never throws and never fabricates: a missing file (S9 hasn't shipped yet)
+ * or one that fails to parse both collapse to the same honest
+ * `{ available: false }` the eval tile renders as a graceful empty state.
+ */
+export function getEvalSummary(actor: AuthTokenPayload, db: Database.Database): EvalSummaryResult {
+  assertDirector(actor, db, 'Governance/eval');
+  try {
+    if (!fs.existsSync(EVAL_REPORT_PATH)) return { available: false };
+    const summary = JSON.parse(fs.readFileSync(EVAL_REPORT_PATH, 'utf-8'));
+    return { available: true, summary };
+  } catch {
+    return { available: false };
+  }
 }

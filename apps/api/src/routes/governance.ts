@@ -2,7 +2,7 @@ import { Router } from 'express';
 import Database from 'better-sqlite3';
 import { requireAuth } from '../middleware/auth';
 import { FhirReadService, ScopeDeniedError } from '../fhir/client';
-import { getAuditTrail, getModelPerformance, getParityMetrics, DirectorOnlyError } from '../governance/service';
+import { getAuditTrail, getModelPerformance, getParityMetrics, getEvalSummary, DirectorOnlyError } from '../governance/service';
 
 const DEFAULT_LIMIT = 50;
 
@@ -48,6 +48,21 @@ export function createGovernanceRouter(fhirService: FhirReadService, db: Databas
   router.get('/parity', async (req, res) => {
     try {
       const result = await getParityMetrics(req.auth!, fhirService, db);
+      res.json(result);
+    } catch (err) {
+      if (err instanceof DirectorOnlyError || err instanceof ScopeDeniedError) {
+        res.status(403).json({ error: err.message });
+        return;
+      }
+      throw err;
+    }
+  });
+
+  // S8 B2 — B2's eval headline tile; see governance/service.ts's
+  // EVAL_REPORT_PATH doc for the exact file this reads.
+  router.get('/eval', (req, res) => {
+    try {
+      const result = getEvalSummary(req.auth!, db);
       res.json(result);
     } catch (err) {
       if (err instanceof DirectorOnlyError || err instanceof ScopeDeniedError) {
