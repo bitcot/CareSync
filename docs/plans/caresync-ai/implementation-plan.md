@@ -454,20 +454,20 @@ Subscription + Tasks live in the disposable HAPI. The relay hub is in-memory (dr
   - *Test:* new Playwright spec (`patient-detail-live-task-update.spec.ts`) — a direct status-transition PATCH (simulating a mobile-queue completion) live-updates an already-open `/patients/maria-chen` tab, no reload, seed data restored and verified after. **Done — API 147/147, web unit 122/122, Playwright 13/13 (serial), `tsc --noEmit` clean in both apps.**
 
 ### Phase C — Verification
-- [ ] **C1.** `npm run test:api` (role listing + transitions) + `npm run test:web`.
-- [ ] **C2. Frontend E2E (`frontend-e2e-verification`).** Social Worker mobile queue (SDOH-only) → open task → mark done → syncs to web (via S6). Coordinator sees all types.
+- [x] **C1.** `npm run test:api` (role listing + transitions) + `npm run test:web`. **Done — see `verification-s7.md`: API 147/147 (serial), web unit 122/122.**
+- [x] **C2. Frontend E2E (`frontend-e2e-verification`).** Social Worker mobile queue (SDOH-only) → open task → mark done → syncs to web (via S6). Coordinator sees all types. **Done — Playwright 13/13 (serial), see `verification-s7.md`.**
 
 ### Rollback / safety
 Task writes audited + reversible via HAPI reset. The GD4 decision is recorded before code so the stack isn't relitigated mid-slice. Cross-surface sync degrades to manual refresh if the relay is down (honest).
 
 ### Definition of done (S7) — maps to `issues.md`
-- GD4 mobile-stack decision recorded before implementation (pre-work gate).
+- GD4 mobile-stack decision recorded before implementation (pre-work gate). ✅ done
 - Task domain field exists (stored as `meta.tag`; `TaskSummary.domain`), fail-open for uncategorized legacy Tasks (A0). ✅ done
-- Social Worker queue SDOH-only; Coordinator sees all (A1).
-- Task detail shows justifying context + citations (B2).
-- Complete/Defer/Escalate PATCH FHIR status and reflect back (A2, B2).
-- Mobile completion syncs to web via S6 relay (B3, C2).
-- API-boundary tests for domain tagging, listing, and each transition (A0, A1, A2).
+- Social Worker queue SDOH-only; Coordinator sees all (A1). ✅ done
+- Task detail shows justifying context + citations (B2). ✅ done
+- Complete/Defer/Escalate PATCH FHIR status and reflect back (A2, B2). ✅ done
+- Mobile completion syncs to web via S6 relay (B3, C2). ✅ done — via `PatientDetail.tsx`, not W13 (GD9 scope correction, see B3).
+- API-boundary tests for domain tagging, listing, and each transition (A0, A1, A2). ✅ done
 
 ---
 
