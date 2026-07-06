@@ -66,6 +66,30 @@ describe('tasks routes', () => {
     return created.id;
   }
 
+  // S7 A1 — same probe-task pattern as createProbeTask, but tags the Task
+  // with A0's domain coding (or leaves it untagged) so the role-filtered
+  // listing has something to filter on. Constructs the raw meta.tag directly
+  // (matching TASK_DOMAIN_SYSTEM in fhir/client.ts) rather than adding a new
+  // service method just for test setup.
+  const TASK_DOMAIN_SYSTEM = 'https://caresync.demo/fhir/task-domain';
+  async function createProbeTaskWithDomain(domain?: 'clinical' | 'sdoh'): Promise<string> {
+    const res = await fetch(`${FHIR_BASE_URL}/Task`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/fhir+json' },
+      body: JSON.stringify({
+        resourceType: 'Task',
+        status: 'requested',
+        intent: 'order',
+        description: 'S7 A1 domain-filter probe task',
+        for: { reference: 'Patient/maria-chen' },
+        ...(domain ? { meta: { tag: [{ system: TASK_DOMAIN_SYSTEM, code: domain }] } } : {}),
+      }),
+    });
+    const created = (await res.json()) as { id: string };
+    createdTaskIds.push(created.id);
+    return created.id;
+  }
+
   it('PATCH /api/tasks/:id/assign sets Task.owner, reflected on read-back, and writes a success audit row', async () => {
     const taskId = await createProbeTask();
     const token = await loginAs(app, 'director@caresync.demo');
@@ -109,5 +133,42 @@ describe('tasks routes', () => {
   it('requires auth', async () => {
     const res = await request(app).patch('/api/tasks/some-id/assign').send({ coordinatorId: 'x' });
     expect(res.status).toBe(401);
+  });
+
+  describe('GET /api/tasks (S7 A1 — role-filtered listing)', () => {
+    it('requires auth', async () => {
+      const res = await request(app).get('/api/tasks');
+      expect(res.status).toBe(401);
+    });
+
+    it('Social Worker sees sdoh-domain and uncategorized tasks, but not clinical-domain tasks', async () => {
+      const sdohId = await createProbeTaskWithDomain('sdoh');
+      const clinicalId = await createProbeTaskWithDomain('clinical');
+      const uncategorizedId = await createProbeTaskWithDomain(undefined);
+      const token = await loginAs(app, 'socialworker@caresync.demo');
+
+      const res = await request(app).get('/api/tasks').set('Authorization', `Bearer ${token}`);
+
+      expect(res.status).toBe(200);
+      const ids = (res.body as Array<{ id: string }>).map((t) => t.id);
+      expect(ids).toContain(sdohId);
+      expect(ids).toContain(uncategorizedId);
+      expect(ids).not.toContain(clinicalId);
+    });
+
+    it('Coordinator sees all task domains, including clinical', async () => {
+      const sdohId = await createProbeTaskWithDomain('sdoh');
+      const clinicalId = await createProbeTaskWithDomain('clinical');
+      const uncategorizedId = await createProbeTaskWithDomain(undefined);
+      const token = await loginAs(app, 'coordinator@caresync.demo');
+
+      const res = await request(app).get('/api/tasks').set('Authorization', `Bearer ${token}`);
+
+      expect(res.status).toBe(200);
+      const ids = (res.body as Array<{ id: string }>).map((t) => t.id);
+      expect(ids).toContain(sdohId);
+      expect(ids).toContain(clinicalId);
+      expect(ids).toContain(uncategorizedId);
+    });
   });
 });

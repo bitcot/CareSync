@@ -12,6 +12,14 @@ export function createTasksRouter(fhirService: FhirReadService): Router {
   const router = Router();
   router.use(requireAuth);
 
+  // S7 A1 — role-filtered task listing. `listTasks` does the actual
+  // per-task domain filter (see its doc in client.ts); this stays a thin
+  // shell, matching the assign route below.
+  router.get('/', async (req, res) => {
+    const tasks = await fhirService.listTasks(req.auth!);
+    res.json(tasks);
+  });
+
   router.patch('/:id/assign', async (req, res) => {
     const { coordinatorId } = (req.body ?? {}) as { coordinatorId?: string };
     if (!coordinatorId || typeof coordinatorId !== 'string') {

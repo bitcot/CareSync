@@ -423,9 +423,11 @@ Subscription + Tasks live in the disposable HAPI. The relay hub is in-memory (dr
   - *Domain rule:* Tasks created **before** this field existed carry no domain tag — read mapping returns `domain: undefined` (never a default), so A1 filtering can **fail open** (an uncategorized Task is visible to every role). **Done.**
   - *Tests (Jest + real HAPI):* `createTask` writes the domain `meta.tag` (verified by read-back-by-id); `mapTaskResource` extracts it and returns `undefined` when absent; `getTasks` maps the untagged seed Task to `undefined`. All existing `ActionPlannerOutput` fixtures updated for the now-required `domain`. **Done — 123/123 API tests pass (serial run; see verification note re: parallel-run HAPI contention).**
 
-- [ ] **A1. Role-filtered task listing.** `GET /api/tasks` scoped by role: Social Worker → SDOH-domain Tasks only (via `hasScope(role, 'sdoh')` + A0's `TaskSummary.domain`; `domain: undefined` fails open per A0), Coordinator → all. Audited.
-  - *Domain rule:* Social Worker sees only SDOH-domain tasks (plus any uncategorized legacy tasks); Coordinator sees all (S7 acceptance, GD5).
-  - *Test (Supertest):* Social Worker listing excludes categorized non-SDOH Tasks but includes uncategorized ones; Coordinator sees all types.
+- [x] **A1. Role-filtered task listing.** `GET /api/tasks` scoped by role: Social Worker → SDOH-domain Tasks only (via `hasScope(role, 'sdoh')` + A0's `TaskSummary.domain`; `domain: undefined` fails open per A0), Coordinator → all. Audited. **Done.**
+  - `FhirReadService.listTasks` (client.ts) reads every panel member (`COORDINATOR_PANEL_GROUP_ID`, same fixed panel `getAssignedPanel` uses) via `Patient/{id}/$everything` — not `Task?subject=...` search, which was verified against the real local HAPI to lag behind a just-written Task; `$everything` reads the compartment directly and doesn't. Audited once for the whole read. `GET /api/tasks` in `routes/tasks.ts` is a thin shell over it.
+  - *Domain rule:* Social Worker sees only SDOH-domain tasks (plus any uncategorized legacy tasks); Coordinator sees all (S7 acceptance, GD5). **Done.**
+  - *Test (Supertest):* Social Worker listing excludes categorized non-SDOH Tasks but includes uncategorized ones; Coordinator sees all types. **Done — 126/126 API tests pass (serial run).**
+  - *Follow-up note:* `getAssignedPanel`'s `taskCount` still reads via `Task?subject=...` search and has the same latent lag risk; out of scope for A1, flagged for a future slice if panel task counts are ever observed stale after a write.
 
 - [ ] **A2. Status-transition endpoints (audited).** `PATCH /api/tasks/:id/status` handling complete/defer/escalate → FHIR Task status/businessStatus in HAPI via the S3 write client.
   - *Domain rule:* transitions PATCH the FHIR Task status and reflect back (S7 acceptance); each write audited.

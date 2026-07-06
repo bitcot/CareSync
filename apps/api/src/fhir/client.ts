@@ -367,6 +367,59 @@ export class FhirReadService {
   }
 
   /**
+   * S7 A1 — role-filtered task listing across the same fixed demo panel
+   * `getAssignedPanel` uses (COORDINATOR_PANEL_GROUP_ID; this POC's
+   * task-bearing population is that small panel, not all ~500 Synthea
+   * patients). Fetches every patient's Tasks via `Patient/{id}/$everything`
+   * (filtered client-side for `resourceType === 'Task'`), audits ONCE for the
+   * whole aggregate read (mirroring `getAssignedPanel`'s audit-once shape),
+   * then filters client-side by domain.
+   *
+   * Query note: same reasoning as `replacePatientTasks` below — a
+   * `Task?subject=Patient/{id}` search lags behind writes on the local HAPI
+   * (7.2.0) under a create-then-immediately-read pattern, so a just-created
+   * Task can be briefly invisible to this listing. That's a real correctness
+   * risk here (this is a live read path, not just a replace-then-forget
+   * write), not merely a test-fixture inconvenience, so `$everything` (which
+   * reads the patient compartment directly rather than through the
+   * search index) is the correct choice, not a workaround.
+   *
+   * Deliberately does not `guard()` on a domain: no role is *denied* this
+   * read (a hasScope gate would incorrectly 403 a Social Worker, who has no
+   * 'clinical' scope — see auth/scopes.ts). Instead this is a per-task
+   * visibility filter: a task's domain is undefined (fail-open, per A0) or a
+   * value the actor's role holds scope for. Director/Coordinator hold both
+   * 'clinical' and 'sdoh' scope, so every task passes; Social Worker holds
+   * only 'sdoh', so a 'clinical'-tagged task is dropped while 'sdoh' and
+   * untagged tasks remain.
+   */
+  async listTasks(actor: AuthTokenPayload): Promise<TaskSummary[]> {
+    const resource = `Group/${COORDINATOR_PANEL_GROUP_ID}`;
+    const group = await this.fhirFetch<any>(`/${resource}`);
+    const patientIds: string[] = (group.member ?? []).map((m: any) => m.entity.reference.split('/')[1]);
+
+    const perPatientBundles = await Promise.all(
+      patientIds.map((id) => this.fhirFetch<FhirBundle<any>>(`/Patient/${id}/$everything`))
+    );
+    writeAudit(this.db, { actor: actor.id, action: 'read', fhirResource: 'Task', outcome: 'success' });
+
+    const allTasks: TaskSummary[] = perPatientBundles.flatMap((bundle) =>
+      (bundle.entry ?? [])
+        .filter((e) => e.resource.resourceType === 'Task')
+        .map((e) => ({
+          id: e.resource.id,
+          title: e.resource.description,
+          priority: FHIR_PRIORITY_TO_DISPLAY[e.resource.priority] ?? 'medium',
+          due: e.resource.restriction?.period?.end,
+          status: FHIR_STATUS_TO_DISPLAY[e.resource.status] ?? 'Open',
+          domain: extractTaskDomain(e.resource),
+        }))
+    );
+
+    return allTasks.filter((task) => task.domain === undefined || hasScope(actor.role, task.domain));
+  }
+
+  /**
    * S5 A2 — one bulk read backing both population dashboard endpoints
    * (scatter + summary). Two `_count`-bounded searches (RiskAssessment,
    * Encounter — no per-patient round trips) joined client-side on
