@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
 import { listTasks, completeTask, type TaskListEntry } from '../api/client';
 import { PRIORITY_LABEL, PRIORITY_CLASS, dueLabel } from '../lib/task';
 
@@ -19,6 +20,12 @@ import { PRIORITY_LABEL, PRIORITY_CLASS, dueLabel } from '../lib/task';
 //     screen by the plan's own architecture note, not this list.
 // The one interactive element that DOES belong here per both the mockup and
 // the plan: "Done", wired to PATCH /api/tasks/:id/status.
+//
+// S7 B2 — each card now also navigates to /tasks/:id (M03) on click; "Done"
+// stops propagation so it keeps completing the task in place instead of also
+// triggering a navigation (same click-vs-navigate concern PatientPanel.tsx's
+// row Links don't have to solve, since they have no nested interactive
+// element — Task cards do).
 
 const PRIORITY_BORDER_L: Record<TaskListEntry['priority'], string> = {
   critical: 'border-l-red',
@@ -77,10 +84,12 @@ function SummaryStat({ label, value, className }: { label: string; value: number
 }
 
 function CompletedTaskCard({ task }: { task: TaskListEntry }) {
+  const navigate = useNavigate();
   return (
     <div
       data-testid={`task-${task.id}`}
-      className="bg-surface border border-border border-l-[3px] border-l-emerald rounded-card p-3 mb-2.5 opacity-60"
+      onClick={() => navigate(`/tasks/${task.id}`)}
+      className="bg-surface border border-border border-l-[3px] border-l-emerald rounded-card p-3 mb-2.5 opacity-60 cursor-pointer"
     >
       <div className="flex items-center gap-2.5">
         <span className="w-[22px] h-[22px] rounded-full bg-emerald-dim border border-emerald flex items-center justify-center flex-none text-emerald">
@@ -111,10 +120,12 @@ function OpenTaskCard({
   onComplete: (id: string) => void;
   completing: boolean;
 }) {
+  const navigate = useNavigate();
   return (
     <div
       data-testid={`task-${task.id}`}
-      className={`bg-surface-raised border border-border ${PRIORITY_BORDER_L[task.priority]} border-l-[3px] rounded-card p-3 mb-2.5`}
+      onClick={() => navigate(`/tasks/${task.id}`)}
+      className={`bg-surface-raised border border-border ${PRIORITY_BORDER_L[task.priority]} border-l-[3px] rounded-card p-3 mb-2.5 cursor-pointer`}
     >
       <div className="flex items-center gap-2 mb-2">
         <span className={`text-[9px] font-bold tracking-wide rounded-pill border px-2 py-0.5 ${PRIORITY_CLASS[task.priority]}`}>
@@ -141,7 +152,10 @@ function OpenTaskCard({
           </span>
         </div>
         <button
-          onClick={() => onComplete(task.id)}
+          onClick={(e) => {
+            e.stopPropagation();
+            onComplete(task.id);
+          }}
           disabled={completing}
           className="h-7 px-3.5 rounded-md bg-surface border border-border text-text text-xs font-semibold disabled:opacity-60 disabled:cursor-default flex-none"
         >

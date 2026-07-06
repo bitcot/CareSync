@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { DirectorOnlyError, FhirReadService, ScopeDeniedError, TaskStatusTransition } from '../fhir/client';
+import { DirectorOnlyError, FhirNotFoundError, FhirReadService, ScopeDeniedError, TaskStatusTransition } from '../fhir/client';
 import { requireAuth } from '../middleware/auth';
 
 const VALID_TRANSITIONS: TaskStatusTransition[] = ['complete', 'defer', 'escalate'];
@@ -20,6 +20,27 @@ export function createTasksRouter(fhirService: FhirReadService): Router {
   router.get('/', async (req, res) => {
     const tasks = await fhirService.listTasks(req.auth!);
     res.json(tasks);
+  });
+
+  // S7 B2 — single-task detail read (justifying patient context + resolved
+  // citations for M03). `getTaskDetail` does the actual domain-scope check +
+  // citation resolution (see its doc in client.ts); this stays a thin shell,
+  // matching the routes above/below.
+  router.get('/:id', async (req, res) => {
+    try {
+      const detail = await fhirService.getTaskDetail(req.auth!, req.params.id);
+      res.json(detail);
+    } catch (err) {
+      if (err instanceof ScopeDeniedError) {
+        res.status(403).json({ error: err.message });
+        return;
+      }
+      if (err instanceof FhirNotFoundError) {
+        res.status(404).json({ error: 'Task not found' });
+        return;
+      }
+      throw err;
+    }
   });
 
   router.patch('/:id/assign', async (req, res) => {

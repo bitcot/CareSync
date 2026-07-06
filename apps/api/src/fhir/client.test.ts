@@ -190,6 +190,31 @@ describe('FhirReadService Task writes (createTask / replacePatientTasks)', () =>
     expect(rows[0]).toMatchObject({ actor: 'coord-1', action: 'create', outcome: 'success', fhir_resource: `Task/${result.id}` });
   });
 
+  // S7 B2 — Decision 1: fhirResources (the Action Planner's citations) is now
+  // persisted onto the FHIR Task itself via Task.input (one entry per
+  // citation, type.text: 'citation', valueReference pointing at the cited
+  // resource), not just carried in the in-memory SSE payload. `Task.input` is
+  // 0..* and built to be repeated — verified empirically against the local
+  // HAPI instance to round-trip every entry intact, unlike `reasonReference`
+  // (FHIR R4's `reasonReference` is 0..1 and HAPI silently keeps only the
+  // first entry when given an array; confirmed by direct probe before this
+  // approach was chosen).
+  it('createTask persists fhirResources as Task.input citation entries, verified by reading the Task back from HAPI', async () => {
+    const result = await service.createTask(coordinator, 'maria-chen', {
+      title: 'Schedule follow-up',
+      description: 'Call patient to schedule a cardiology follow-up',
+      priority: 'high',
+      fhirResources: ['Condition/maria-chen-chf', 'Observation/maria-chen-bnp'],
+    });
+    createdTaskIds.push(result.id);
+
+    const fetched = await fetchTask(result.id);
+    expect(fetched.input).toEqual([
+      { type: { text: 'citation' }, valueReference: { reference: 'Condition/maria-chen-chf' } },
+      { type: { text: 'citation' }, valueReference: { reference: 'Observation/maria-chen-bnp' } },
+    ]);
+  });
+
   it('createTask writes a domain coding for the given domain, verified by reading the Task back from HAPI', async () => {
     const result = await service.createTask(coordinator, 'maria-chen', {
       title: 'Arrange transport',

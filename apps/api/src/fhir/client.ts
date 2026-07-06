@@ -28,6 +28,22 @@ export class DirectorOnlyError extends Error {
   }
 }
 
+/**
+ * S7 B2 — distinguishes "the FHIR resource genuinely doesn't exist" (HAPI
+ * 404) from any other upstream FHIR failure, so `getTaskDetail`'s route can
+ * map it to a 404 instead of an opaque 500/hang. No existing caller of
+ * `fhirFetch` needed this distinction before B2 (every other 404 case here
+ * either can't happen against seed/probe data or is masked by an earlier
+ * scope check), so this is additive: every other non-ok status still throws
+ * the generic Error below, unchanged.
+ */
+export class FhirNotFoundError extends Error {
+  constructor(resource: string) {
+    super(`FHIR resource not found: ${resource}`);
+    this.name = 'FhirNotFoundError';
+  }
+}
+
 export interface PatientSummary {
   id: string;
   name: string;
@@ -78,6 +94,15 @@ export interface TaskListEntry extends TaskSummary {
   conditionTag?: string;
 }
 
+// S7 B2 — TaskListEntry plus the fields the M03 task-detail screen needs:
+// the resolved citations (Task.input citation entries — see createTask's doc
+// — each paired with a human-readable display string) and the patient's
+// phone number (Patient.telecom, S7 B2 Decision 2), for the Call action.
+export interface TaskDetail extends TaskListEntry {
+  citations: Array<{ reference: string; display: string }>;
+  patientPhone?: string;
+}
+
 const FHIR_PRIORITY_TO_DISPLAY: Record<string, TaskPriority> = {
   stat: 'critical',
   urgent: 'high',
@@ -112,6 +137,11 @@ const CARESYNC_TASK_TAG = { system: 'https://caresync.demo/fhir/tags', code: 'ai
 // The externally-visible contract is unchanged: domain is exposed on
 // TaskSummary.domain as 'clinical' | 'sdoh', undefined when absent.
 const TASK_DOMAIN_SYSTEM = 'https://caresync.demo/fhir/task-domain';
+
+// S7 B2 — Task.input.type.text value marking an input entry as a citation
+// (see createTask's doc for why Task.input, not Task.reasonReference, is the
+// citation-storage field).
+const TASK_CITATION_INPUT_TYPE = 'citation';
 
 /**
  * Extracts a Task's care domain from its `meta.tag` codings, or undefined if
@@ -261,6 +291,7 @@ export class FhirReadService {
     }
     const res = await fetch(`${this.baseUrl}${path}`, { ...init, headers });
     if (!res.ok) {
+      if (res.status === 404) throw new FhirNotFoundError(path);
       throw new Error(`FHIR request failed: ${init.method ?? 'GET'} ${path} -> ${res.status}`);
     }
     return (await res.json()) as T;
@@ -290,6 +321,24 @@ export class FhirReadService {
       writeAudit(this.db, { actor: actor.id, action, fhirResource: resource, outcome: 'denied' });
       throw new ScopeDeniedError(actor.role, domain);
     }
+  }
+
+  /**
+   * S7 A2/B2 — the per-task (not per-role) domain-scope check shared by
+   * `transitionTask` (a write) and `getTaskDetail` (a read): deny only if the
+   * Task's own domain tag is defined and the actor's role lacks scope for it
+   * (fail-open on an undefined domain, same as A1's `listTasks` filter — see
+   * `transitionTask`'s doc for the full reasoning on why this can't be a
+   * plain `guard()` call). Returns the extracted domain so callers can also
+   * surface it (`getTaskDetail`'s response includes it via `TaskListEntry`).
+   */
+  private guardTaskDomain(actor: AuthTokenPayload, resource: string, task: any, action: string): TaskDomain | undefined {
+    const domain = extractTaskDomain(task);
+    if (domain !== undefined && !hasScope(actor.role, domain)) {
+      writeAudit(this.db, { actor: actor.id, action, fhirResource: resource, outcome: 'denied' });
+      throw new ScopeDeniedError(actor.role, domain);
+    }
+    return domain;
   }
 
   /**
@@ -515,15 +564,20 @@ export class FhirReadService {
    * a later replacePatientTasks run can find and replace it without ever
    * touching a seed/Synthea Task (which carries no such tag).
    *
-   * Citation storage: `task.fhirResources` (the Action Planner's citations for
-   * this task) is intentionally NOT persisted onto the FHIR Task. HAPI's Task
-   * resource has no native "citations" field, and bolting one on via a custom
-   * extension would invent a non-standard shape only this app understands —
-   * for a POC that's more machinery than the problem needs. The caller (the
-   * analysis route, wired in a later task) already holds the
-   * ActionPlannerOutput in memory and can carry `fhirResources` alongside the
-   * created Task id in its own SSE `task` event, so nothing is lost — it's
-   * just kept out of the FHIR resource itself.
+   * Citation storage (S7 B2): `task.fhirResources` (the Action Planner's
+   * citations for this task — often more than one; the Action Planner's own
+   * prompt requires citing "one or more" resources) is persisted onto the
+   * FHIR Task via `Task.input`, one entry per citation:
+   * `{ type: { text: 'citation' }, valueReference: { reference: ref } }`.
+   * `Task.input` is FHIR R4's native `0..*` (repeatable) element for "inputs
+   * consumed by the task" — a standard element, not a custom extension.
+   * `Task.reasonReference` was tried first and rejected: FHIR R4 defines it
+   * as `0..1` (a single Reference, not an array), and HAPI (7.2.0) accepts a
+   * multi-entry array on write with no error but silently keeps only the
+   * first entry — confirmed by direct probe. `Task.input` was verified the
+   * same way (multi-entry POST → GET) to round-trip every entry intact, so
+   * every citation a task carries now survives on the resource itself, not
+   * just in the in-memory SSE payload the caller could otherwise drop.
    */
   async createTask(actor: AuthTokenPayload, patientId: string, task: ActionPlannerTaskInput): Promise<CreatedTask> {
     const resource = `Task/${patientId}`;
@@ -543,6 +597,12 @@ export class FhirReadService {
       body.restriction = {
         period: { end: new Date(Date.now() + task.dueInDays * 24 * 60 * 60 * 1000).toISOString() },
       };
+    }
+    if (task.fhirResources.length > 0) {
+      body.input = task.fhirResources.map((ref) => ({
+        type: { text: TASK_CITATION_INPUT_TYPE },
+        valueReference: { reference: ref },
+      }));
     }
     // Only tag the domain when one is present — an untagged Task must stay
     // untagged (fail-open on the read side), never carry an empty coding.
@@ -616,11 +676,7 @@ export class FhirReadService {
     const resource = `Task/${taskId}`;
     const task = await this.fhirFetch<Record<string, any>>(`/${resource}`);
 
-    const domain = extractTaskDomain(task);
-    if (domain !== undefined && !hasScope(actor.role, domain)) {
-      writeAudit(this.db, { actor: actor.id, action: 'update', fhirResource: resource, outcome: 'denied' });
-      throw new ScopeDeniedError(actor.role, domain);
-    }
+    this.guardTaskDomain(actor, resource, task, 'update');
 
     switch (transition) {
       case 'complete':
@@ -643,6 +699,92 @@ export class FhirReadService {
     });
     writeAudit(this.db, { actor: actor.id, action: 'update', fhirResource: resource, outcome: 'success' });
     return { id: taskId, status: task.status as string };
+  }
+
+  /**
+   * S7 B2 — resolves one Task.input citation entry's `valueReference` into a
+   * short human-readable display string, reusing the same field-reading
+   * conventions already established elsewhere in this file: Condition reads
+   * `code.text`/`code.coding[0].display` the way `getConditions`/
+   * `shortConditionTag` callers do; Observation pairs that same code label
+   * with `valueQuantity` (see `observationResource` in scripts/import-fhir.ts
+   * for the shape). Any other resource type, or a reference that no longer
+   * resolves (e.g. a citation pointing at a deleted resource), falls back to
+   * the raw reference string rather than failing the whole detail read.
+   */
+  private async resolveCitationDisplay(reference: string): Promise<string> {
+    try {
+      const resource = await this.fhirFetch<any>(`/${reference}`);
+      const label = resource.code?.text ?? resource.code?.coding?.[0]?.display;
+      if (resource.resourceType === 'Observation' && resource.valueQuantity) {
+        const { value, unit } = resource.valueQuantity;
+        return `${label ?? reference}: ${value}${unit ? ` ${unit}` : ''}`;
+      }
+      return label ?? reference;
+    } catch {
+      return reference;
+    }
+  }
+
+  /**
+   * S7 B2 — single-Task read backing the M03 task-detail screen: the Task
+   * itself (mapped the same way `listTasks` maps each entry), its patient's
+   * name/conditionTag/phone (from the same `Patient/{id}/$everything` bundle
+   * `listTasks` uses), and its citations — `Task.input` entries tagged
+   * `TASK_CITATION_INPUT_TYPE` (see `createTask`'s doc), each resolved to a
+   * display string via `resolveCitationDisplay`.
+   *
+   * Domain-scope check reuses `guardTaskDomain` (the same rule
+   * `transitionTask` enforces for writes, applied here to a read) rather than
+   * duplicating it inline. Audited once for the whole read, mirroring
+   * `getAssignedPanel`/`listTasks`'s audit-once-per-logical-read shape — a
+   * 404 (Task doesn't exist) or a 403 (domain denial, audited by
+   * `guardTaskDomain` itself) never reaches the success audit below.
+   */
+  async getTaskDetail(actor: AuthTokenPayload, taskId: string): Promise<TaskDetail> {
+    const resource = `Task/${taskId}`;
+    const task = await this.fhirFetch<Record<string, any>>(`/${resource}`);
+    const domain = this.guardTaskDomain(actor, resource, task, 'read');
+
+    const patientId: string | undefined = task.for?.reference?.split('/')[1];
+    const bundle = patientId
+      ? await this.fhirFetch<FhirBundle<any>>(`/Patient/${patientId}/$everything`)
+      : undefined;
+    const entries = bundle?.entry ?? [];
+    const patientResource = entries.find((e) => e.resource.resourceType === 'Patient')?.resource;
+    const name = patientResource?.name?.[0];
+    const patientName = [name?.given?.join(' '), name?.family].filter(Boolean).join(' ');
+    const firstCondition = entries.find((e) => e.resource.resourceType === 'Condition')?.resource;
+    const conditionTag = firstCondition
+      ? shortConditionTag(firstCondition.code?.coding?.[0]?.code, firstCondition.code?.text ?? '')
+      : undefined;
+    const patientPhone: string | undefined = patientResource?.telecom?.find((t: any) => t.system === 'phone')?.value;
+
+    const citationInputs: any[] = (task.input ?? []).filter(
+      (i: any) => i.type?.text === TASK_CITATION_INPUT_TYPE && i.valueReference?.reference
+    );
+    const citations = await Promise.all(
+      citationInputs.map(async (i) => ({
+        reference: i.valueReference.reference as string,
+        display: await this.resolveCitationDisplay(i.valueReference.reference),
+      }))
+    );
+
+    writeAudit(this.db, { actor: actor.id, action: 'read', fhirResource: resource, outcome: 'success' });
+
+    return {
+      id: task.id,
+      title: task.description,
+      priority: FHIR_PRIORITY_TO_DISPLAY[task.priority] ?? 'medium',
+      due: task.restriction?.period?.end,
+      status: displayStatus(task),
+      domain,
+      patientId: patientId as string,
+      patientName,
+      conditionTag,
+      citations,
+      patientPhone,
+    };
   }
 
   /**

@@ -58,9 +58,29 @@ export function listTasks(): Promise<TaskListEntry[]> {
   return apiFetch('/api/tasks');
 }
 
-/** S7 B1 — the M02 queue's only wired action; Defer/Escalate/Call belong to B2's task-detail screen. */
+// S7 B2 — TaskListEntry plus the fields the M03 task-detail screen needs:
+// resolved citations and the patient's phone (for the Call action). Mirrors
+// `TaskDetail` in apps/api/src/fhir/client.ts, returned only by
+// `GET /api/tasks/:id` (getTaskDetail).
+export interface TaskDetail extends TaskListEntry {
+  citations: Array<{ reference: string; display: string }>;
+  patientPhone?: string;
+}
+
+export function getTaskDetail(id: string): Promise<TaskDetail> {
+  return apiFetch(`/api/tasks/${id}`);
+}
+
+export type TaskStatusTransition = 'complete' | 'defer' | 'escalate';
+
+/** S7 B2 — the M03 task-detail screen's Complete/Defer/Escalate buttons all PATCH the same endpoint with a different transition. */
+export function transitionTask(id: string, transition: TaskStatusTransition): Promise<{ id: string; status: string }> {
+  return apiFetch(`/api/tasks/${id}/status`, { method: 'PATCH', body: JSON.stringify({ transition }) });
+}
+
+/** S7 B1 — the M02 queue's only wired action; a thin sibling of `transitionTask` kept for the existing call sites. */
 export function completeTask(id: string): Promise<{ id: string; status: string }> {
-  return apiFetch(`/api/tasks/${id}/status`, { method: 'PATCH', body: JSON.stringify({ transition: 'complete' }) });
+  return transitionTask(id, 'complete');
 }
 
 export interface PatientDetail {

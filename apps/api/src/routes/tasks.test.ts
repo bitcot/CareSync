@@ -90,6 +90,31 @@ describe('tasks routes', () => {
     return created.id;
   }
 
+  // S7 B2 — probe for GET /api/tasks/:id: a Task carrying Task.input citation
+  // entries (the same shape createTask now writes — see client.ts's doc on
+  // createTask) pointing at real seed Condition/Observation resources, so the
+  // detail read has something real to resolve a display string from.
+  async function createProbeTaskWithCitations(citations: string[], domain?: 'clinical' | 'sdoh'): Promise<string> {
+    const res = await fetch(`${FHIR_BASE_URL}/Task`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/fhir+json' },
+      body: JSON.stringify({
+        resourceType: 'Task',
+        status: 'requested',
+        intent: 'order',
+        priority: 'urgent',
+        description: 'S7 B2 task-detail probe: cardiology follow-up',
+        for: { reference: 'Patient/maria-chen' },
+        authoredOn: new Date().toISOString(),
+        input: citations.map((ref) => ({ type: { text: 'citation' }, valueReference: { reference: ref } })),
+        ...(domain ? { meta: { tag: [{ system: TASK_DOMAIN_SYSTEM, code: domain }] } } : {}),
+      }),
+    });
+    const created = (await res.json()) as { id: string };
+    createdTaskIds.push(created.id);
+    return created.id;
+  }
+
   it('PATCH /api/tasks/:id/assign sets Task.owner, reflected on read-back, and writes a success audit row', async () => {
     const taskId = await createProbeTask();
     const token = await loginAs(app, 'director@caresync.demo');
@@ -349,6 +374,77 @@ describe('tasks routes', () => {
       const listRes = await request(app).get('/api/tasks').set('Authorization', `Bearer ${token}`);
       const found = (listRes.body as Array<{ id: string; status: string }>).find((t) => t.id === taskId);
       expect(found?.status).toBe('Deferred');
+    });
+  });
+
+  describe('GET /api/tasks/:id (S7 B2 — task detail + citations)', () => {
+    it('requires auth', async () => {
+      const res = await request(app).get('/api/tasks/some-id');
+      expect(res.status).toBe(401);
+    });
+
+    it('returns the task, its justifying patient context, and resolved citations', async () => {
+      const taskId = await createProbeTaskWithCitations(['Condition/maria-chen-chf', 'Observation/maria-chen-hba1c']);
+      const token = await loginAs(app, 'coordinator@caresync.demo');
+
+      const res = await request(app).get(`/api/tasks/${taskId}`).set('Authorization', `Bearer ${token}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body).toMatchObject({
+        id: taskId,
+        patientId: 'maria-chen',
+        patientName: 'Maria Chen',
+        patientPhone: '+1-555-0142',
+      });
+      const citations = res.body.citations as Array<{ reference: string; display: string }>;
+      expect(citations).toHaveLength(2);
+      const condition = citations.find((c) => c.reference === 'Condition/maria-chen-chf');
+      const observation = citations.find((c) => c.reference === 'Observation/maria-chen-hba1c');
+      expect(condition?.display).toContain('Heart failure');
+      expect(observation?.display).toContain('Hemoglobin A1c');
+    });
+
+    it('writes one success audit row for the detail read', async () => {
+      const taskId = await createProbeTaskWithCitations(['Condition/maria-chen-chf']);
+      const token = await loginAs(app, 'coordinator@caresync.demo');
+
+      await request(app).get(`/api/tasks/${taskId}`).set('Authorization', `Bearer ${token}`);
+
+      const rows = db
+        .prepare(`SELECT * FROM audit_log WHERE fhir_resource = ? AND outcome = 'success'`)
+        .all(`Task/${taskId}`) as any[];
+      expect(rows.length).toBe(1);
+      expect(rows[0]).toMatchObject({ action: 'read' });
+    });
+
+    it('a Social Worker is denied (403) reading a clinical-domain task, and a denial audit row is written', async () => {
+      const taskId = await createProbeTaskWithCitations(['Condition/maria-chen-chf'], 'clinical');
+      const token = await loginAs(app, 'socialworker@caresync.demo');
+
+      const res = await request(app).get(`/api/tasks/${taskId}`).set('Authorization', `Bearer ${token}`);
+
+      expect(res.status).toBe(403);
+      const rows = db
+        .prepare(`SELECT * FROM audit_log WHERE fhir_resource = ? AND outcome = 'denied'`)
+        .all(`Task/${taskId}`) as any[];
+      expect(rows.length).toBeGreaterThan(0);
+    });
+
+    it('a Social Worker can read an sdoh-domain task', async () => {
+      const taskId = await createProbeTaskWithCitations(['Condition/maria-chen-chf'], 'sdoh');
+      const token = await loginAs(app, 'socialworker@caresync.demo');
+
+      const res = await request(app).get(`/api/tasks/${taskId}`).set('Authorization', `Bearer ${token}`);
+
+      expect(res.status).toBe(200);
+    });
+
+    it('returns 404 for a nonexistent task id', async () => {
+      const token = await loginAs(app, 'coordinator@caresync.demo');
+
+      const res = await request(app).get('/api/tasks/does-not-exist-12345').set('Authorization', `Bearer ${token}`);
+
+      expect(res.status).toBe(404);
     });
   });
 });
