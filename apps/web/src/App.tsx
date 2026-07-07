@@ -1,11 +1,11 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { AppShell } from './components/AppShell';
 import { RoleGuard } from './auth/RoleGuard';
+import { useAuth, roleHome } from './auth/useAuth';
 import { Login } from './pages/Login';
 import { PatientPanel } from './pages/PatientPanel';
 import { PatientDetail } from './pages/PatientDetail';
 import { Population } from './pages/Population';
-import { PopulationPatientList } from './pages/PopulationPatientList';
 import { Governance } from './pages/Governance';
 import { Quality } from './pages/Quality';
 import { Team } from './pages/Team';
@@ -14,18 +14,29 @@ import { TaskQueue } from './pages/TaskQueue';
 import { TaskDetail } from './pages/TaskDetail';
 import { TaskManagement } from './pages/TaskManagement';
 import { CarePlanBuilder } from './pages/CarePlanBuilder';
+import { PatientProfile } from './pages/PatientProfile';
 import { ComingSoon } from './pages/ComingSoon';
 import { ShellScreenPage } from './pages/ShellScreenPage';
 import { MoreScreens } from './pages/MoreScreens';
+import AlertsPage from './pages/AlertsPage';
+import SettingsPage from './pages/SettingsPage';
+import CostROI from './pages/CostROI';
 
 // S12 C.1 — `/task-center` now points at the real `TaskManagement` page
 // (the W13 task-management center, ported from the lead project) rather
 // than the S11 `ComingSoon` placeholder.
 
+function RootRedirect() {
+  const { user } = useAuth();
+  if (!user) return <Navigate to="/login" replace />;
+  return <Navigate to={roleHome(user.role)} replace />;
+}
+
 function App() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
+      <Route path="/" element={<RootRedirect />} />
       <Route
         element={
           <RoleGuard>
@@ -35,9 +46,7 @@ function App() {
       >
         <Route path="/panel" element={<PatientPanel />} />
         <Route path="/patients/:id" element={<PatientDetail />} />
-        {/* S11 A1 — M05 SDOH resource directory + referral; every role with
-            'sdoh' scope (director/coordinator/social_worker — see
-            auth/scopes.ts) can reach it, so no extra RoleGuard here. */}
+        <Route path="/patients/:id/profile" element={<PatientProfile />} />
         <Route path="/patients/:id/sdoh" element={<Sdoh />} />
         <Route path="/tasks" element={<TaskQueue />} />
         <Route path="/tasks/:id" element={<TaskDetail />} />
@@ -56,14 +65,6 @@ function App() {
           element={
             <RoleGuard role="director">
               <Population />
-            </RoleGuard>
-          }
-        />
-        <Route
-          path="/population/patients"
-          element={
-            <RoleGuard role="director">
-              <PopulationPatientList />
             </RoleGuard>
           }
         />
@@ -91,10 +92,18 @@ function App() {
             </RoleGuard>
           }
         />
+        <Route
+          path="/cost-roi"
+          element={
+            <RoleGuard role="director">
+              <CostROI />
+            </RoleGuard>
+          }
+        />
+        <Route path="/alerts" element={<AlertsPage />} />
+        <Route path="/settings" element={<SettingsPage />} />
+        <Route path="/sdoh" element={<Sdoh />} />
         <Route path="/coming-soon" element={<ComingSoon />} />
-        {/* S11 B1 — one dynamic route for the 10 remaining GD9 shell screens
-            (W13 has its own /task-center route above), not 11 static
-            entries; see lib/shellScreens.ts. */}
         <Route path="/screens/:screenId" element={<ShellScreenPage />} />
         <Route path="/more" element={<MoreScreens />} />
       </Route>
