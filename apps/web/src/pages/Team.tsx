@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { getTeamPerformance } from '../api/client';
 import type { CoordinatorWorkload } from '../api/client';
+import { StatTile } from '../components/StatTile';
 
 /**
  * W04 Team performance view (S11 A3) — no matching reference mockup exists
@@ -12,20 +13,6 @@ import type { CoordinatorWorkload } from '../api/client';
  * an empty coordinator list or all-zero counts is an honest reflection of
  * current demo state, not a bug.
  */
-
-function StatTile({ value, label, valueClassName = 'text-cyan', testId }: {
-  value: string;
-  label: string;
-  valueClassName?: string;
-  testId?: string;
-}) {
-  return (
-    <div className="bg-surface border border-border rounded-card px-3.5 py-2.5 flex flex-col justify-center gap-0.5 min-w-0" data-testid={testId}>
-      <span className="text-xs font-semibold uppercase tracking-wide text-text-muted truncate">{label}</span>
-      <span className={`text-title font-bold font-mono leading-tight ${valueClassName}`}>{value}</span>
-    </div>
-  );
-}
 
 function CoordinatorRow({ coordinator }: { coordinator: CoordinatorWorkload }) {
   const percent = Math.round(coordinator.completionRate * 1000) / 10;
