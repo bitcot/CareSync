@@ -2,6 +2,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { listTasks, completeTask, type TaskListEntry } from '../api/client';
 import { PRIORITY_LABEL, PRIORITY_CLASS, dueLabel } from '../lib/task';
+import { DemoFallbackBadge } from '../components/DemoFallbackBadge';
+import { MOCK_TASKS } from '../lib/demoFallbacks';
 
 // S7 B1 — M02 Task Queue, built against reference-materials/caresync-mobile.html
 // ("My Tasks", 390×844 phone shell). Per the GD4 decision this is demoed inside
@@ -168,13 +170,19 @@ function OpenTaskCard({
 
 export function TaskQueue() {
   const queryClient = useQueryClient();
-  const { data, isLoading, isError } = useQuery({ queryKey: ['tasks'], queryFn: listTasks });
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ['tasks'],
+    queryFn: listTasks,
+    placeholderData: MOCK_TASKS,
+    retry: 1,
+  });
   const completeMutation = useMutation({
     mutationFn: completeTask,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['tasks'] }),
   });
 
-  const tasks = data ?? [];
+  const tasks = data ?? MOCK_TASKS;
+  const isUsingFallback = isError;
   const openCount = tasks.filter((t) => isOpenStatus(t.status)).length;
   const criticalCount = tasks.filter((t) => t.priority === 'critical').length;
   const patientsCount = new Set(tasks.map((t) => t.patientId)).size;
@@ -185,8 +193,9 @@ export function TaskQueue() {
       <StatusBarChrome />
 
       {/* Nav header — title only per the B1 scope decision (no back button, no bell/badge: no backing data for either). */}
-      <div className="h-12 flex-none flex items-center justify-center border-b border-border">
+      <div className="h-12 flex-none flex items-center justify-center border-b border-border gap-2">
         <span className="text-nav font-bold text-text">My Tasks</span>
+        {isUsingFallback && <DemoFallbackBadge />}
       </div>
 
       {/* Summary bar — 3 real stats, no segment tabs (Patients/Alerts/Profile have no content in this slice). */}

@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { getSdohResources, postSdohReferral, type CommunityResource } from '../api/client';
+import { DemoFallbackBadge } from '../components/DemoFallbackBadge';
+import { MOCK_SDOH_RESOURCES } from '../lib/demoFallbacks';
 
 /**
  * S11 A1 — M05 SDOH resource directory + referral, rendered against
@@ -99,9 +101,12 @@ export function Sdoh() {
   const { data, isLoading, isError } = useQuery({
     queryKey: ['sdoh-resources'],
     queryFn: () => getSdohResources(),
+    placeholderData: MOCK_SDOH_RESOURCES,
+    retry: 1,
   });
 
-  const filtered = (data ?? []).filter((r) => category === 'all' || r.category === category);
+  const filtered = (data ?? MOCK_SDOH_RESOURCES).filter((r) => category === 'all' || r.category === category);
+  const isUsingFallback = isError;
 
   return (
     <div>
@@ -111,7 +116,10 @@ export function Sdoh() {
         </Link>
       )}
 
-      <h1 className="text-section text-text font-bold mt-2 mb-4">SDOH Resources</h1>
+      <div className="flex items-center gap-3 mt-2 mb-4">
+        <h1 className="text-section text-text font-bold">SDOH Resources</h1>
+        {isUsingFallback && <DemoFallbackBadge />}
+      </div>
 
       <div className="flex gap-1 border-b border-border mb-4 overflow-x-auto" data-testid="sdoh-category-tabs">
         {CATEGORY_TABS.map((tab) => (

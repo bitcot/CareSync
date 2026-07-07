@@ -12,16 +12,15 @@ import { Team } from './pages/Team';
 import { Sdoh } from './pages/Sdoh';
 import { TaskQueue } from './pages/TaskQueue';
 import { TaskDetail } from './pages/TaskDetail';
+import { TaskManagement } from './pages/TaskManagement';
+import { CarePlanBuilder } from './pages/CarePlanBuilder';
 import { ComingSoon } from './pages/ComingSoon';
 import { ShellScreenPage } from './pages/ShellScreenPage';
 import { MoreScreens } from './pages/MoreScreens';
-import { SHELL_SCREENS } from './lib/shellScreens';
 
-// S11 B1 — W13 is folded into the shared GD9 shell pattern (see
-// shellScreens.ts) but keeps its own pre-existing `/task-center` route and
-// Coordinator-only nav link (AppShell.tsx) rather than the generic
-// `/screens/:screenId` route below, so neither regresses.
-const TASK_CENTER_LABEL = SHELL_SCREENS.find((s) => s.id === 'W13')!.label;
+// S12 C.1 — `/task-center` now points at the real `TaskManagement` page
+// (the W13 task-management center, ported from the lead project) rather
+// than the S11 `ComingSoon` placeholder.
 
 function App() {
   return (
@@ -42,7 +41,16 @@ function App() {
         <Route path="/patients/:id/sdoh" element={<Sdoh />} />
         <Route path="/tasks" element={<TaskQueue />} />
         <Route path="/tasks/:id" element={<TaskDetail />} />
-        <Route path="/task-center" element={<ComingSoon title={TASK_CENTER_LABEL} />} />
+        {/* S12 C.2 — Care Plan Builder (W14, capacity-flexed in S11 A4, now built). */}
+        <Route
+          path="/care-plans/:patientId"
+          element={
+            <RoleGuard role="coordinator">
+              <CarePlanBuilder />
+            </RoleGuard>
+          }
+        />
+        <Route path="/task-center" element={<RoleGuard role="coordinator"><TaskManagement /></RoleGuard>} />
         <Route
           path="/population"
           element={

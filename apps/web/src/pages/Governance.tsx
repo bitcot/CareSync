@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { getAuditTrail, getModelPerformance, getParityMetrics, getEvalSummary } from '../api/client';
+import { DemoFallbackBadge } from '../components/DemoFallbackBadge';
+import { MOCK_AUDIT_TRAIL, MOCK_MODEL_PERFORMANCE, MOCK_PARITY } from '../lib/demoFallbacks';
 import { averageConfidence } from '../lib/confidenceChartGeometry';
 import { buildParityAxes } from '../lib/parityScore';
 import { ConfidenceChart } from '../components/ConfidenceChart';
@@ -118,17 +120,34 @@ export function Governance() {
     // page-level loading state on every click — pagination should feel like
     // paging, not a full reload.
     placeholderData: keepPreviousData,
+    retry: 1,
   });
-  const modelQuery = useQuery({ queryKey: ['governance-model'], queryFn: getModelPerformance });
-  const parityQuery = useQuery({ queryKey: ['governance-parity'], queryFn: getParityMetrics });
+  // S12 B.2 — `placeholderData` keeps the page rendering immediately AND when
+  // the API errors. The audit query uses `keepPreviousData` for pagination,
+  // so only the model + parity queries get the MOCK_* placeholderData here.
+  const modelQuery = useQuery({
+    queryKey: ['governance-model'],
+    queryFn: getModelPerformance,
+    placeholderData: MOCK_MODEL_PERFORMANCE,
+    retry: 1,
+  });
+  const parityQuery = useQuery({
+    queryKey: ['governance-parity'],
+    queryFn: getParityMetrics,
+    placeholderData: MOCK_PARITY,
+    retry: 1,
+  });
   const evalQuery = useQuery({ queryKey: ['governance-eval'], queryFn: getEvalSummary });
 
   const isLoading = auditQuery.isLoading || modelQuery.isLoading || parityQuery.isLoading;
   const isError = auditQuery.isError || modelQuery.isError || parityQuery.isError;
+  const isUsingFallback = isError || auditQuery.isError;
 
-  const audit = auditQuery.data;
-  const model = modelQuery.data;
-  const parity = parityQuery.data;
+  // Fall back to mock data so the page never blanks out. The badge shows
+  // when any of these are showing the demo data.
+  const audit = auditQuery.data ?? MOCK_AUDIT_TRAIL;
+  const model = modelQuery.data ?? MOCK_MODEL_PERFORMANCE;
+  const parity = parityQuery.data ?? MOCK_PARITY;
 
   const avgConfidence = model ? averageConfidence(model.confidenceDistribution) : undefined;
   const flaggedCount = model?.confidenceDistribution.find((b) => b.range === LOWEST_CONFIDENCE_BUCKET)?.count ?? 0;
@@ -137,7 +156,10 @@ export function Governance() {
 
   return (
     <div>
-      <h1 className="text-section text-text font-bold mb-4">AI Governance Center</h1>
+      <div className="flex items-center gap-3 mb-4">
+        <h1 className="text-section text-text font-bold">AI Governance Center</h1>
+        {isUsingFallback && <DemoFallbackBadge />}
+      </div>
 
       {isLoading && <p className="text-body text-text-muted">Loading governance data…</p>}
       {isError && <p className="text-body text-red">Could not load the governance dashboard.</p>}

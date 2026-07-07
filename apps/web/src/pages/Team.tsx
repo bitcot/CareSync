@@ -1,5 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { getTeamPerformance } from '../api/client';
+import { DemoFallbackBadge } from '../components/DemoFallbackBadge';
+import { MOCK_TEAM } from '../lib/demoFallbacks';
 import type { CoordinatorWorkload } from '../api/client';
 import { StatTile } from '../components/StatTile';
 
@@ -35,8 +37,14 @@ function CoordinatorRow({ coordinator }: { coordinator: CoordinatorWorkload }) {
 }
 
 export function Team() {
-  const performanceQuery = useQuery({ queryKey: ['team-performance'], queryFn: getTeamPerformance });
-  const performance = performanceQuery.data;
+  const performanceQuery = useQuery({
+    queryKey: ['team-performance'],
+    queryFn: getTeamPerformance,
+    placeholderData: MOCK_TEAM,
+    retry: 1,
+  });
+  const performance = performanceQuery.data ?? MOCK_TEAM;
+  const isUsingFallback = performanceQuery.isError;
   const overallPercent = performance ? (Math.round(performance.overallCompletionRate * 1000) / 10).toFixed(1) : undefined;
 
   const noCoordinators = performance !== undefined && performance.coordinators.length === 0;
@@ -48,7 +56,10 @@ export function Team() {
 
   return (
     <div>
-      <h1 className="text-section text-text font-bold mb-4">Team Performance</h1>
+      <div className="flex items-center gap-3 mb-4">
+        <h1 className="text-section text-text font-bold">Team Performance</h1>
+        {isUsingFallback && <DemoFallbackBadge />}
+      </div>
 
       {performanceQuery.isLoading && <p className="text-body text-text-muted">Loading team performance…</p>}
       {performanceQuery.isError && <p className="text-body text-red">Could not load the team performance dashboard.</p>}
