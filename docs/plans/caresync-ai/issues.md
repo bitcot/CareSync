@@ -213,11 +213,11 @@ JSON summary that feeds the S8 governance tile. Ships as an honest dev-labeled b
 (~P6 4) with the slot to upgrade to clinician-validated (P6 5).
 
 ### Acceptance criteria
-- [ ] A committed label file holds ground truth with rows structured for later clinician override.
-- [ ] `npm run eval` runs agents over all labeled patients and computes the metrics per agent.
-- [ ] The report includes an explicit error-analysis section.
-- [ ] A JSON summary is produced and consumed by the S8 governance tile.
-- [ ] Harness metric computation is tested against a fixed label fixture with known expected output (Seam 4).
+- [x] A committed label file holds ground truth with rows structured for later clinician override.
+- [x] `npm run eval` runs agents over all labeled patients and computes the metrics per agent.
+- [x] The report includes an explicit error-analysis section.
+- [x] A JSON summary is produced and consumed by the S8 governance tile.
+- [x] Harness metric computation is tested against a fixed label fixture with known expected output (Seam 4).
 
 ### Blocked by
 - S3

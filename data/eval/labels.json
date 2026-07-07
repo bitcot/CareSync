@@ -1,0 +1,355 @@
+{
+  "_meta": {
+    "description": "S9 A1 — committed ground-truth label file for the eval harness (Phase B: `npm run eval`). Covers all 6 curated hero/panel patients (`ALL_PATIENTS`, apps/api/src/fhir-data/seed-patients.ts) plus the first 10 deterministic procedural patients (`pop-0001`..`pop-0010`, apps/api/src/fhir-data/population.ts's `generatePopulation()`) — the plan's '~5 curated hero + ~10 Synthea' with the disclosed S5 substitution (no real Synthea/Java in this repo; `pop-XXXX` deterministic patients stand in, precedent: docs/plans/caresync-ai/verification-s5.md).",
+    "clinicianStatus": "DEV-LABELED BASELINE, NOT CLINICIAN-VALIDATED (GD8). Every row's `source` is \"dev\" and every row carries a `clinicianOverride` slot (currently `null`) that a clinician can fill in later to upgrade a row without any code change (GD8's 4->5 lever). Do not present these labels as clinician-reviewed.",
+    "labelingRules": {
+      "careGap": "expectedHasGap is derived ONLY from Observation-type coverage for the two (three, counting CKD) conditions that already have an established LOINC convention elsewhere in this codebase: diabetes (E11.9) needs an HbA1c Observation (LOINC 4548-4, as seeded for maria-chen); CHF (I50.9) needs a BNP Observation (LOINC 30934-4, as seeded for maria-chen); CKD (N18.3) needs an eGFR Observation (LOINC 62238-1, also seeded for maria-chen, general renal marker). A patient with one of these conditions and NO matching Observation on file is labeled true (a real, defensible monitoring gap: the record shows the test was never done). A patient with the condition AND a matching Observation on file is labeled false. Conditions with no established Observation/LOINC convention anywhere in this codebase (depression F33.1, COPD J44.9, HTN I10, acute hip fracture S72.001A) are left UNLABELED (expectedHasGap: null) rather than guessing — see `clinicianStatus`/GD8 for the override path.",
+      "risk": "expectedHighRisk is true iff the patient's own seed/generator riskScore (SeedPatient.riskScore for curated patients; the deterministic riskScoreFor() output for procedural patients — both documented, pre-existing values, not invented for this label file) is >= 75, the same CRITICAL_RISK_THRESHOLD population.ts already uses for its 'critical zone'. Ground truth is compared against whether the Risk agent's `riskLevel` output is 'high' or 'critical'.",
+      "sdoh": "expectedHasBarrier is true only for patients with a seeded AHC-HRSN screening (`sdohPositive` in seed-patients.ts) — the only SDOH-relevant evidence this dataset provides anywhere. Only maria-chen has one. Every other patient (panel and procedural) is labeled false: the SDOH agent's own prompt scopes it to the AHC-HRSN screening + demographics + observations, and none of those other patients have any AHC-HRSN screening or SDOH-relevant observation for it to find.",
+      "actionPlanner": "No per-patient ground truth (Action Planner is qualitative synthesis, not classification, per the plan). `computeMetrics` passes through each patient's created-task data unscored for Phase B's report to narrate."
+    },
+    "limitations": [
+      "Care Gap ground truth is skewed positive (10 true / 1 false / 5 unlabeled across the 16 rows) because population.ts never generates baseline preventive-care Observations for any procedural patient — there is only one real negative example (maria-chen, who has both her HbA1c and BNP on file). Specificity for Care Gap in this baseline rests on a single data point and should be read as illustrative, not statistically robust, until clinician-reviewed rows or richer procedural Observation data exist.",
+      "SDOH ground truth has only one positive example (maria-chen) for the same reason (no other patient has any seeded AHC-HRSN data) — the agreement rate is easy to game with an agent that always predicts 'no barrier' and should be read alongside the error-analysis section Phase B's report is required to include, not in isolation."
+    ]
+  },
+  "patients": [
+    {
+      "patientId": "maria-chen",
+      "source": "dev",
+      "clinicianOverride": null,
+      "careGap": {
+        "expectedHasGap": false,
+        "notes": "Diabetes (E11.9) has Observation/maria-chen-hba1c on file; CHF (I50.9) has Observation/maria-chen-bnp on file — both the conditions this dataset's Observation coding actually covers are monitored. Her depression (F33.1) has no corresponding Observation type established anywhere in this codebase, so that dimension is intentionally left out of this boolean rather than guessed at."
+      },
+      "risk": {
+        "expectedHighRisk": true,
+        "seedRiskScore": 87,
+        "notes": "Seed riskScore 87 >= 75 (CRITICAL_RISK_THRESHOLD). Independently plausible from her raw data: CHF admission 48h ago, BNP 340 (elevated), HbA1c 8.9% (poorly controlled), eGFR 52 (reduced), K+ 3.4 (low) — a clinically high-risk 30-day-readmission profile."
+      },
+      "sdoh": {
+        "expectedHasBarrier": true,
+        "expectedDomains": ["housing", "food"],
+        "notes": "Observation/maria-chen-sdoh: AHC-HRSN screening positive for housing instability and food insecurity."
+      },
+      "actionPlanner": {
+        "notes": "Qualitative only — see Phase B report."
+      }
+    },
+    {
+      "patientId": "james-okafor",
+      "source": "dev",
+      "clinicianOverride": null,
+      "careGap": {
+        "expectedHasGap": null,
+        "notes": "COPD (J44.9) only. No spirometry/pulmonary-function Observation convention exists anywhere in this codebase to judge monitoring adequacy against — left unlabeled rather than guessed."
+      },
+      "risk": {
+        "expectedHighRisk": false,
+        "seedRiskScore": 62,
+        "notes": "Seed riskScore 62 < 75."
+      },
+      "sdoh": {
+        "expectedHasBarrier": false,
+        "notes": "No seeded AHC-HRSN screening or any other SDOH-relevant evidence for this patient."
+      },
+      "actionPlanner": {
+        "notes": "Qualitative only — see Phase B report."
+      }
+    },
+    {
+      "patientId": "linda-torres",
+      "source": "dev",
+      "clinicianOverride": null,
+      "careGap": {
+        "expectedHasGap": true,
+        "notes": "CKD stage 3 (N18.3) with zero Observations on file, including no eGFR (LOINC 62238-1, the exact renal-function marker this codebase already seeds for maria-chen) — a real, defensible monitoring gap for a CKD patient."
+      },
+      "risk": {
+        "expectedHighRisk": false,
+        "seedRiskScore": 71,
+        "notes": "Seed riskScore 71 < 75 (just under threshold)."
+      },
+      "sdoh": {
+        "expectedHasBarrier": false,
+        "notes": "No seeded AHC-HRSN screening or any other SDOH-relevant evidence for this patient."
+      },
+      "actionPlanner": {
+        "notes": "Qualitative only — see Phase B report."
+      }
+    },
+    {
+      "patientId": "robert-kim",
+      "source": "dev",
+      "clinicianOverride": null,
+      "careGap": {
+        "expectedHasGap": null,
+        "notes": "Acute hip fracture (S72.001A) — not a recurring chronic-monitoring condition with an established Observation convention in this codebase (no bone-density/DEXA marker seeded anywhere). Left unlabeled rather than guessed."
+      },
+      "risk": {
+        "expectedHighRisk": false,
+        "seedRiskScore": 45,
+        "notes": "Seed riskScore 45 < 75."
+      },
+      "sdoh": {
+        "expectedHasBarrier": false,
+        "notes": "No seeded AHC-HRSN screening or any other SDOH-relevant evidence for this patient."
+      },
+      "actionPlanner": {
+        "notes": "Qualitative only — see Phase B report."
+      }
+    },
+    {
+      "patientId": "angela-diaz",
+      "source": "dev",
+      "clinicianOverride": null,
+      "careGap": {
+        "expectedHasGap": null,
+        "notes": "HTN (I10) and depression (F33.1) — neither has an established Observation/LOINC monitoring convention anywhere in this codebase (no blood-pressure or PHQ-9-equivalent Observation is ever seeded). Left unlabeled rather than guessed."
+      },
+      "risk": {
+        "expectedHighRisk": false,
+        "seedRiskScore": 58,
+        "notes": "Seed riskScore 58 < 75."
+      },
+      "sdoh": {
+        "expectedHasBarrier": false,
+        "notes": "No seeded AHC-HRSN screening or any other SDOH-relevant evidence for this patient."
+      },
+      "actionPlanner": {
+        "notes": "Qualitative only — see Phase B report."
+      }
+    },
+    {
+      "patientId": "samuel-wright",
+      "source": "dev",
+      "clinicianOverride": null,
+      "careGap": {
+        "expectedHasGap": true,
+        "notes": "CHF (I50.9) with zero Observations on file, including no BNP (LOINC 30934-4) — same monitoring-gap logic as maria-chen's CHF dimension, but unmonitored here."
+      },
+      "risk": {
+        "expectedHighRisk": true,
+        "seedRiskScore": 79,
+        "notes": "Seed riskScore 79 >= 75."
+      },
+      "sdoh": {
+        "expectedHasBarrier": false,
+        "notes": "No seeded AHC-HRSN screening or any other SDOH-relevant evidence for this patient."
+      },
+      "actionPlanner": {
+        "notes": "Qualitative only — see Phase B report."
+      }
+    },
+    {
+      "patientId": "pop-0001",
+      "source": "dev",
+      "clinicianOverride": null,
+      "careGap": {
+        "expectedHasGap": true,
+        "notes": "Procedural patient, condition mix ['diabetes'] (generatePopulation() never seeds any Observation) — no HbA1c on file for a diabetes diagnosis."
+      },
+      "risk": {
+        "expectedHighRisk": false,
+        "seedRiskScore": 38,
+        "notes": "Generator riskScore 38 < 75 (inspected directly via generatePopulation()[0])."
+      },
+      "sdoh": {
+        "expectedHasBarrier": false,
+        "notes": "Procedural patients never receive a seeded AHC-HRSN screening or any other SDOH-relevant evidence."
+      },
+      "actionPlanner": {
+        "notes": "Qualitative only — see Phase B report."
+      }
+    },
+    {
+      "patientId": "pop-0002",
+      "source": "dev",
+      "clinicianOverride": null,
+      "careGap": {
+        "expectedHasGap": true,
+        "notes": "Procedural patient, condition mix ['chf'] — no BNP on file for a CHF diagnosis."
+      },
+      "risk": {
+        "expectedHighRisk": false,
+        "seedRiskScore": 38,
+        "notes": "Generator riskScore 38 < 75 (inspected directly via generatePopulation()[1])."
+      },
+      "sdoh": {
+        "expectedHasBarrier": false,
+        "notes": "Procedural patients never receive a seeded AHC-HRSN screening or any other SDOH-relevant evidence."
+      },
+      "actionPlanner": {
+        "notes": "Qualitative only — see Phase B report."
+      }
+    },
+    {
+      "patientId": "pop-0003",
+      "source": "dev",
+      "clinicianOverride": null,
+      "careGap": {
+        "expectedHasGap": null,
+        "notes": "Procedural patient, condition mix ['depression'] — depression has no established Observation/LOINC monitoring convention anywhere in this codebase. Left unlabeled rather than guessed."
+      },
+      "risk": {
+        "expectedHighRisk": false,
+        "seedRiskScore": 32,
+        "notes": "Generator riskScore 32 < 75 (inspected directly via generatePopulation()[2])."
+      },
+      "sdoh": {
+        "expectedHasBarrier": false,
+        "notes": "Procedural patients never receive a seeded AHC-HRSN screening or any other SDOH-relevant evidence."
+      },
+      "actionPlanner": {
+        "notes": "Qualitative only — see Phase B report."
+      }
+    },
+    {
+      "patientId": "pop-0004",
+      "source": "dev",
+      "clinicianOverride": null,
+      "careGap": {
+        "expectedHasGap": true,
+        "notes": "Procedural patient, condition mix ['diabetes','chf'] — no HbA1c and no BNP on file for either diagnosis."
+      },
+      "risk": {
+        "expectedHighRisk": false,
+        "seedRiskScore": 66,
+        "notes": "Generator riskScore 66 < 75 (inspected directly via generatePopulation()[3])."
+      },
+      "sdoh": {
+        "expectedHasBarrier": false,
+        "notes": "Procedural patients never receive a seeded AHC-HRSN screening or any other SDOH-relevant evidence."
+      },
+      "actionPlanner": {
+        "notes": "Qualitative only — see Phase B report."
+      }
+    },
+    {
+      "patientId": "pop-0005",
+      "source": "dev",
+      "clinicianOverride": null,
+      "careGap": {
+        "expectedHasGap": true,
+        "notes": "Procedural patient, condition mix ['diabetes','depression'] — no HbA1c on file for the diabetes diagnosis (depression itself is left out of the rule, but diabetes alone is enough to label this true)."
+      },
+      "risk": {
+        "expectedHighRisk": false,
+        "seedRiskScore": 50,
+        "notes": "Generator riskScore 50 < 75 (inspected directly via generatePopulation()[4])."
+      },
+      "sdoh": {
+        "expectedHasBarrier": false,
+        "notes": "Procedural patients never receive a seeded AHC-HRSN screening or any other SDOH-relevant evidence."
+      },
+      "actionPlanner": {
+        "notes": "Qualitative only — see Phase B report."
+      }
+    },
+    {
+      "patientId": "pop-0006",
+      "source": "dev",
+      "clinicianOverride": null,
+      "careGap": {
+        "expectedHasGap": true,
+        "notes": "Procedural patient, condition mix ['chf','depression'] — no BNP on file for the CHF diagnosis (depression itself is left out of the rule, but CHF alone is enough to label this true)."
+      },
+      "risk": {
+        "expectedHighRisk": false,
+        "seedRiskScore": 46,
+        "notes": "Generator riskScore 46 < 75 (inspected directly via generatePopulation()[5])."
+      },
+      "sdoh": {
+        "expectedHasBarrier": false,
+        "notes": "Procedural patients never receive a seeded AHC-HRSN screening or any other SDOH-relevant evidence."
+      },
+      "actionPlanner": {
+        "notes": "Qualitative only — see Phase B report."
+      }
+    },
+    {
+      "patientId": "pop-0007",
+      "source": "dev",
+      "clinicianOverride": null,
+      "careGap": {
+        "expectedHasGap": true,
+        "notes": "Procedural patient, condition mix ['diabetes','chf','depression'] — no HbA1c and no BNP on file for either classifiable diagnosis."
+      },
+      "risk": {
+        "expectedHighRisk": true,
+        "seedRiskScore": 92,
+        "notes": "Generator riskScore 92 >= 75 (inspected directly via generatePopulation()[6]) — full three-condition comorbidity plus a recent (60h) discharge."
+      },
+      "sdoh": {
+        "expectedHasBarrier": false,
+        "notes": "Procedural patients never receive a seeded AHC-HRSN screening or any other SDOH-relevant evidence."
+      },
+      "actionPlanner": {
+        "notes": "Qualitative only — see Phase B report."
+      }
+    },
+    {
+      "patientId": "pop-0008",
+      "source": "dev",
+      "clinicianOverride": null,
+      "careGap": {
+        "expectedHasGap": true,
+        "notes": "Procedural patient, condition mix ['diabetes'] — no HbA1c on file for the diabetes diagnosis."
+      },
+      "risk": {
+        "expectedHighRisk": false,
+        "seedRiskScore": 32,
+        "notes": "Generator riskScore 32 < 75 (inspected directly via generatePopulation()[7])."
+      },
+      "sdoh": {
+        "expectedHasBarrier": false,
+        "notes": "Procedural patients never receive a seeded AHC-HRSN screening or any other SDOH-relevant evidence."
+      },
+      "actionPlanner": {
+        "notes": "Qualitative only — see Phase B report."
+      }
+    },
+    {
+      "patientId": "pop-0009",
+      "source": "dev",
+      "clinicianOverride": null,
+      "careGap": {
+        "expectedHasGap": true,
+        "notes": "Procedural patient, condition mix ['chf'] — no BNP on file for the CHF diagnosis."
+      },
+      "risk": {
+        "expectedHighRisk": false,
+        "seedRiskScore": 48,
+        "notes": "Generator riskScore 48 < 75 (inspected directly via generatePopulation()[8])."
+      },
+      "sdoh": {
+        "expectedHasBarrier": false,
+        "notes": "Procedural patients never receive a seeded AHC-HRSN screening or any other SDOH-relevant evidence."
+      },
+      "actionPlanner": {
+        "notes": "Qualitative only — see Phase B report."
+      }
+    },
+    {
+      "patientId": "pop-0010",
+      "source": "dev",
+      "clinicianOverride": null,
+      "careGap": {
+        "expectedHasGap": null,
+        "notes": "Procedural patient, condition mix ['depression'] — depression has no established Observation/LOINC monitoring convention anywhere in this codebase. Left unlabeled rather than guessed."
+      },
+      "risk": {
+        "expectedHighRisk": false,
+        "seedRiskScore": 28,
+        "notes": "Generator riskScore 28 < 75 (inspected directly via generatePopulation()[9])."
+      },
+      "sdoh": {
+        "expectedHasBarrier": false,
+        "notes": "Procedural patients never receive a seeded AHC-HRSN screening or any other SDOH-relevant evidence."
+      },
+      "actionPlanner": {
+        "notes": "Qualitative only — see Phase B report."
+      }
+    }
+  ]
+}
