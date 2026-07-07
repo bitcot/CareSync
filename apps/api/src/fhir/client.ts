@@ -587,6 +587,37 @@ export class FhirReadService {
   }
 
   /**
+   * S11 A2 — bulk count of resources matching a single `system|code` search,
+   * backing the real HEDIS diabetes/HbA1c measure (quality/service.ts's
+   * getDiabetesHba1cMeasure). Uses `_summary=count` rather than
+   * `fetchPages`/`_count=N` above: the caller only ever needs the total, so
+   * fetching (and paginating through) every matching resource body would be
+   * pure waste for what's ultimately a single number. HAPI's `_summary=count`
+   * response is a Bundle with `total` set and no `entry` array, which is why
+   * this goes through `fhirFetch` directly instead of `fetchPages` (which
+   * assumes a paginated `entry` list and would see none here).
+   */
+  async getResourceCountByCode(
+    actor: AuthTokenPayload,
+    resourceType: 'Condition' | 'Observation',
+    system: string,
+    code: string
+  ): Promise<number> {
+    // The whole `system|code` token (not just `system`) must be percent-
+    // encoded, including the `|` itself as `%7C` — confirmed by direct probe
+    // against the local HAPI (7.2.0): a literal, unencoded `|` in the query
+    // string 400s, even though curl's own copy-paste-friendly example in the
+    // task brief (`code=http://hl7.org/...|E11.9`) looks unencoded.
+    const tokenParam = encodeURIComponent(`${system}|${code}`);
+    const resource = `${resourceType}?code=${tokenParam}`;
+    this.guard(actor, 'clinical', resource);
+
+    const bundle = await this.fhirFetch<{ total?: number }>(`/${resourceType}?code=${tokenParam}&_summary=count`);
+    writeAudit(this.db, { actor: actor.id, action: 'read', fhirResource: resource, outcome: 'success' });
+    return bundle.total ?? 0;
+  }
+
+  /**
    * S8 A3 — batch demographics read backing GD12 demographic-parity
    * computation (governance/service.ts's getParityMetrics). Follows
    * `getPopulationRiskProfile`'s bulk-read pattern just above, but scoped to

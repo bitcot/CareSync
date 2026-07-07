@@ -114,6 +114,14 @@ export function AppShell() {
                 Governance
               </Link>
             )}
+            {/* S11 A2 — W05/W07 real HEDIS diabetes/HbA1c measure dashboard;
+                same director-only nav scoping as the Governance link above
+                (no PRD story scopes this to Coordinator/Social Worker). */}
+            {user.role === 'director' && (
+              <Link to="/quality" className="text-label text-text-muted hover:text-text transition-colors">
+                Quality
+              </Link>
+            )}
             <BellIcon className="text-text-muted w-4 h-4" />
             <span
               className="w-7 h-7 rounded-full bg-surface-raised border border-border-light text-cyan text-xs font-bold flex items-center justify-center"

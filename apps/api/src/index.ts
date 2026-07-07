@@ -7,6 +7,7 @@ import { createPatientsRouter } from './routes/patients';
 import { createAnalysisRouter } from './routes/analysis';
 import { createPopulationRouter } from './routes/population';
 import { createGovernanceRouter } from './routes/governance';
+import { createQualityRouter } from './routes/quality';
 import { createTasksRouter } from './routes/tasks';
 import { createSdohRouter } from './routes/sdoh';
 import { createEventsRouter, createSubscriptionWebhookRouter } from './routes/events';
@@ -68,6 +69,8 @@ if (require.main === module) {
   app.use('/api/tasks', createTasksRouter(fhirService));
   // S11 A1 — SDOH community resource directory + audited referral (M05).
   app.use('/api/sdoh', createSdohRouter(fhirService));
+  // S11 A2 — Quality/HEDIS measure aggregate (W05/W07).
+  app.use('/api/quality', createQualityRouter(fhirService));
   // S6 A3 — the client relay (`/api/events`) and HAPI's webhook target
   // (`/api/fhir/subscription-hook`) share one in-process hub instance.
   const eventHub = createEventHub();

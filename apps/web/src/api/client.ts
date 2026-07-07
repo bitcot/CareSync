@@ -202,6 +202,31 @@ export function getEvalSummary(): Promise<EvalSummaryResult> {
   return apiFetch('/api/governance/eval');
 }
 
+// --- S11 A2 — Quality/HEDIS measure aggregate (W05/W07) ------------------
+
+/**
+ * The ONE real HEDIS-style measure this POC computes end to end
+ * ("Comprehensive Diabetes Care: HbA1c Testing" — see
+ * `apps/api/src/quality/service.ts`'s `getDiabetesHba1cMeasure` doc for the
+ * FHIR codes and the "one honest measure beats two fabricated ones" reasoning).
+ * `illustrativeIncentiveDollars` is a documented, labeled estimate
+ * (`gapPatients * $5,000/closed gap`), never a real payer-contract figure —
+ * `Quality.tsx` must render it with that caveat, not as a plain dollar amount.
+ */
+export interface QualityMeasureResult {
+  measureId: string;
+  measureName: string;
+  numerator: number;
+  denominator: number;
+  rate: number;
+  gapPatients: number;
+  illustrativeIncentiveDollars: number;
+}
+
+export function getQualityMeasures(): Promise<QualityMeasureResult> {
+  return apiFetch('/api/quality/measures');
+}
+
 export type AgentId = 'risk' | 'careGap' | 'sdoh' | 'actionPlanner';
 
 /**
