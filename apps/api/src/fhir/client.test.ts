@@ -464,6 +464,54 @@ describe('FhirReadService.getResourceCountByCode (S11 A2 — HEDIS measure aggre
   });
 });
 
+// S11 A3 — Team performance aggregate (W04). Exercised against the real
+// disposable HAPI container + seed data, same Seam 1 pattern as the rest of
+// this file. As of this writing, the seeded panel carries 7 real Tasks, all
+// `status: 'requested'` and all ownerless (no frontend UI calls the S6 A1
+// assign endpoint yet) — so this asserts a length >= 1 (not pinned to
+// exactly 7, in case seed data changes) and that the shape/fail-open
+// (ownerCoordinatorId undefined when no owner) is correct against that real
+// current state, not a fabricated one.
+describe('FhirReadService.getTaskOwnershipSummary (S11 A3 — team performance aggregate)', () => {
+  let db: Database.Database;
+  let service: FhirReadService;
+
+  beforeEach(() => {
+    db = new Database(':memory:');
+    migrate(db);
+    service = new FhirReadService(db, process.env.FHIR_BASE_URL ?? 'http://localhost:8080/fhir');
+  });
+
+  it('returns an entry for every real Task in the seeded panel, with status/ownerCoordinatorId shaped correctly', async () => {
+    const entries = await service.getTaskOwnershipSummary(coordinator);
+
+    expect(entries.length).toBeGreaterThanOrEqual(1);
+    for (const entry of entries) {
+      expect(typeof entry.taskId).toBe('string');
+      expect(typeof entry.status).toBe('string');
+      expect(entry.ownerCoordinatorId === undefined || typeof entry.ownerCoordinatorId === 'string').toBe(true);
+    }
+  });
+
+  it('leaves ownerCoordinatorId undefined for a Task with no owner — matching the seeded panel\'s current real state', async () => {
+    const entries = await service.getTaskOwnershipSummary(coordinator);
+    expect(entries.some((e) => e.ownerCoordinatorId === undefined)).toBe(true);
+  });
+
+  it('writes exactly one success audit row for the whole read', async () => {
+    await service.getTaskOwnershipSummary(coordinator);
+    const rows = db.prepare("SELECT * FROM audit_log WHERE fhir_resource = 'Population/team-performance'").all() as any[];
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ actor: 'coord-1', outcome: 'success' });
+  });
+
+  it('denies a Social Worker (no clinical scope) and writes a denied audit row', async () => {
+    await expect(service.getTaskOwnershipSummary(socialWorker)).rejects.toBeInstanceOf(ScopeDeniedError);
+    const rows = db.prepare('SELECT * FROM audit_log ORDER BY id').all() as any[];
+    expect(rows[rows.length - 1]).toMatchObject({ actor: 'sw-1', outcome: 'denied' });
+  });
+});
+
 describe('FhirReadService with a SMART token client', () => {
   it('attaches the SMART access token as a Bearer header on every HAPI call', async () => {
     const db = new Database(':memory:');

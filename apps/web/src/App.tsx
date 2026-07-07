@@ -8,6 +8,7 @@ import { Population } from './pages/Population';
 import { PopulationPatientList } from './pages/PopulationPatientList';
 import { Governance } from './pages/Governance';
 import { Quality } from './pages/Quality';
+import { Team } from './pages/Team';
 import { Sdoh } from './pages/Sdoh';
 import { TaskQueue } from './pages/TaskQueue';
 import { TaskDetail } from './pages/TaskDetail';
@@ -63,6 +64,14 @@ function App() {
           element={
             <RoleGuard role="director">
               <Quality />
+            </RoleGuard>
+          }
+        />
+        <Route
+          path="/team"
+          element={
+            <RoleGuard role="director">
+              <Team />
             </RoleGuard>
           }
         />

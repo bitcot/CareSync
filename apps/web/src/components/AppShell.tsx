@@ -122,6 +122,13 @@ export function AppShell() {
                 Quality
               </Link>
             )}
+            {/* S11 A3 — W04 team performance view; same director-only nav
+                scoping as the Governance/Quality links above. */}
+            {user.role === 'director' && (
+              <Link to="/team" className="text-label text-text-muted hover:text-text transition-colors">
+                Team
+              </Link>
+            )}
             <BellIcon className="text-text-muted w-4 h-4" />
             <span
               className="w-7 h-7 rounded-full bg-surface-raised border border-border-light text-cyan text-xs font-bold flex items-center justify-center"

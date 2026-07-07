@@ -227,6 +227,35 @@ export function getQualityMeasures(): Promise<QualityMeasureResult> {
   return apiFetch('/api/quality/measures');
 }
 
+// --- S11 A3 — Team performance aggregate (W04) ---------------------------
+
+/** Mirrors `CoordinatorWorkload` in `apps/api/src/team/service.ts`. */
+export interface CoordinatorWorkload {
+  coordinatorId: string;
+  name: string;
+  assignedCount: number;
+  completedCount: number;
+  completionRate: number;
+}
+
+/**
+ * Mirrors `TeamPerformanceResult` in `apps/api/src/team/service.ts` exactly.
+ * Computed live from real Task ownership/status at request time — an empty
+ * `coordinators` array or all-zero counts is a true reflection of current
+ * demo state (e.g. no coordinators seeded, or no Task has been assigned/
+ * completed yet), never a loading artifact.
+ */
+export interface TeamPerformanceResult {
+  coordinators: CoordinatorWorkload[];
+  unassignedCount: number;
+  totalTasks: number;
+  overallCompletionRate: number;
+}
+
+export function getTeamPerformance(): Promise<TeamPerformanceResult> {
+  return apiFetch('/api/team/performance');
+}
+
 export type AgentId = 'risk' | 'careGap' | 'sdoh' | 'actionPlanner';
 
 /**

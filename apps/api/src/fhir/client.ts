@@ -103,6 +103,18 @@ export interface TaskDetail extends TaskListEntry {
   patientPhone?: string;
 }
 
+// S11 A3 — the coarse status/owner-only shape `getTaskOwnershipSummary`
+// returns for the team performance aggregate (W04). Deliberately NOT a
+// TaskSummary/TaskListEntry extension: `status` here is the raw FHIR value
+// (e.g. 'requested'/'completed'/'on-hold'), not `displayStatus()`'s mapped
+// label, and no title/domain/patient fields are exposed — team/service.ts's
+// aggregation only needs "whose is it, is it done."
+export interface TaskOwnershipEntry {
+  taskId: string;
+  status: string;
+  ownerCoordinatorId?: string;
+}
+
 const FHIR_PRIORITY_TO_DISPLAY: Record<string, TaskPriority> = {
   stat: 'critical',
   urgent: 'high',
@@ -541,6 +553,56 @@ export class FhirReadService {
     });
 
     return allTasks.filter((task) => task.domain === undefined || hasScope(actor.role, task.domain));
+  }
+
+  /**
+   * S11 A3 — team performance aggregate (W04). Reuses `listTasks`'s exact
+   * discovery pattern (Group/COORDINATOR_PANEL_GROUP_ID member patient IDs ->
+   * Promise.all $everything bundles -> flatMap Task resources) but returns a
+   * coarser, status/owner-only shape: the raw FHIR `status` (not
+   * `displayStatus()`'s mapped label — team/service.ts needs to distinguish
+   * 'completed' from every other status, which a "Done"/"Open" label would
+   * lose) and `ownerCoordinatorId` (the app `users.id` behind
+   * `task.owner.identifier`, same logical reference `assignTask` writes — see
+   * COORDINATOR_OWNER_IDENTIFIER_SYSTEM's doc above).
+   *
+   * A single `guard(actor, 'clinical', ...)` call (not a per-task domain
+   * filter like `listTasks` above) is the right granularity here: this
+   * summary never exposes a task's title or domain, only status + owner, so
+   * there's nothing for a per-task visibility filter to protect — a coarse
+   * clinical-scope gate is enough. Director-only enforcement itself is a
+   * separate, stricter check the caller (team/service.ts's `assertDirector`)
+   * applies before this method ever runs, matching population/service.ts's
+   * own two-layer precedent (`getPopulationRiskProfile` above also guards
+   * `'clinical'` while its caller separately enforces Director-only).
+   *
+   * Audited once for the whole read, matching `listTasks`'s own audit-once
+   * convention.
+   */
+  async getTaskOwnershipSummary(actor: AuthTokenPayload): Promise<TaskOwnershipEntry[]> {
+    const resource = 'Population/team-performance';
+    this.guard(actor, 'clinical', resource);
+
+    const group = await this.fhirFetch<any>(`/Group/${COORDINATOR_PANEL_GROUP_ID}`);
+    const patientIds: string[] = (group.member ?? []).map((m: any) => m.entity.reference.split('/')[1]);
+
+    const perPatientBundles = await Promise.all(
+      patientIds.map((id) => this.fhirFetch<FhirBundle<any>>(`/Patient/${id}/$everything`))
+    );
+    writeAudit(this.db, { actor: actor.id, action: 'read', fhirResource: resource, outcome: 'success' });
+
+    return perPatientBundles.flatMap((bundle) =>
+      (bundle.entry ?? [])
+        .filter((e) => e.resource.resourceType === 'Task')
+        .map((e) => ({
+          taskId: e.resource.id,
+          status: e.resource.status,
+          ownerCoordinatorId:
+            e.resource.owner?.identifier?.system === COORDINATOR_OWNER_IDENTIFIER_SYSTEM
+              ? e.resource.owner?.identifier?.value
+              : undefined,
+        }))
+    );
   }
 
   /**
