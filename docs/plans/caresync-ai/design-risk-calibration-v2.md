@@ -1,5 +1,7 @@
 # Design — Risk Agent Calibration v2 (S16)
 
+> **Status (2026-07-09):** D4's temperature + seed pin is **not viable** — the OpenAI Responses API rejects `seed` on all models and rejects `temperature` on reasoning-tier models. Verified by commit 2 subagent; see [`variance-probe.md`](variance-probe.md). D4 is deferred; commit 2 ships the `varianceProbe.ts` observation tool without the pin. D2's v2 rubric design stands unchanged — it's independent of the pin.
+
 > **PLAN_ID:** `caresync-ai` · **Slice:** S16 · **Date:** 2026-07-09
 > **Status:** Forward-looking design — feeds `prd-s16.md` → `implementation-plan-s16.md` → code.
 > **Audit-trail ancestors:** `docs/plans/caresync-ai/design-risk-calibration.md` (S13's reverted design — same pattern, this doc mirrors it). The S13 reversion post-mortem (`docs/plans/caresync-ai/verification-s13.md §4 + §6`) is the upstream evidence base for what was tried, why it failed, and where the variance lives.

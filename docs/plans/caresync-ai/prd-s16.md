@@ -1,5 +1,7 @@
 # PRD — S16: Risk Agent Calibration v2 (Rubric Redesign + LLM-Variance Investigation)
 
+> **Status (2026-07-09):** D2's temperature + seed pin is **not viable** — the OpenAI Responses API rejects `seed` on all models and rejects `temperature` on reasoning-tier models. Verified by commit 2 subagent; see [`variance-probe.md`](variance-probe.md). D2 is now deferred; commit 2 ships the `varianceProbe.ts` observation tool without the pin. D3 (varianceProbe.ts design) stands. D4–D11 stand (v2 rubric design + 2x2 gate + commit 3) — they don't depend on the pin.
+
 > **PLAN_ID:** `caresync-ai` · **Slice:** S16 · **Status:** Ready for `writing-plans` (ADLC: specify → plan)
 > **Author:** Manjula / Bitcot · 2026-07-09
 > **Upstream artifacts:** `docs/plans/caresync-ai/grill-risk-calibration-v2.md` (7-question grill, 2026-07-09), `docs/plans/caresync-ai/design-risk-calibration.md` (S13's reverted rubric — audit trail), `docs/plans/caresync-ai/verification-s13.md §4 + §6` (LLM-variance evidence + open follow-ups), `reports/HL7-Challenge-Evaluation.2026-07-08-post-s15.md §E` (sub-gap 3 that motivates S16), `apps/api/src/agents/riskAgent.ts:11,85-100` (the current model + prompt — S16's targets), `apps/api/src/agents/{careGap,sdoh,actionPlanner}Agent.ts` (the other 3 agents that share the temperature/seed pin), `apps/api/src/eval/labelFromBundle.ts` (S15's held-out label function — feeds the 2x2 gate's held-out arm), `apps/api/src/agents/riskAgent.test.ts` (existing TDD surface).
@@ -207,22 +209,22 @@ Mechanical revert: replace `buildPrompt` body with the v1 5-line prompt (the pos
 - `apps/api/src/eval/labelFromBundle.ts` — S15's held-out label function feeds the 2x2 gate's held-out arm; no change.
 - `apps/api/package.json` — no new scripts (variance probe runs via `npx tsx`).
 
-### D9. Verification matrix (S16's 5 signals)
+### D9. Verification matrix (S16's 5 signals, scope-reduced)
 | # | Signal | Verification command / artifact | Pass condition |
 |---|---|---|---|
-| 1 | Temperature + seed pin in all 4 agents | `grep -n "temperature\|seed" apps/api/src/agents/*Agent.ts` + the 4 `*.test.ts` files | All 4 `*Agent.ts` pass `temperature: 0` + `seed: 42` to `client.responses.create(...)`; the 4 `*.test.ts` files pin both params via `params.temperature === 0` / `params.seed === 42` |
-| 2 | varianceProbe.ts exists and runs against the real LLM | `npx tsx src/eval/varianceProbe.ts` | Script exits 0; emits per-patient `riskLevel` agreement matrix from 3-5 runs against the dev-labeled 16 |
-| 3 | Variance window collapses | Pre-pin probe (commit 2's first run, before pin is applied) vs post-pin probe (commit 2's second run) | Post-pin per-patient agreement ≥80% (was <30% per `verification-s13.md §4`) |
+| 1 | ~~Temperature + seed pin in all 4 agents~~ — **deferred** | The OpenAI Responses API rejects `seed` on all models and rejects `temperature` on reasoning-tier models. Per [`variance-probe.md`](variance-probe.md). | n/a — deferred to a future slice that picks a different variance-collapse lever |
+| 2 | varianceProbe.ts exists, runs against the real LLM (when supported) | `npx tsx src/eval/varianceProbe.ts` | Script exits 0 when the API supports the call; emits per-patient `riskLevel` agreement matrix from 3 runs against the dev-labeled 16. **Today:** exits non-zero with the documented API rejection; the TDD contract is still satisfied. |
+| 3 | ~~Variance window collapses~~ — **n/a** | n/a | The pin-based collapse strategy is not viable on the Responses API. Future slices pick a different lever. |
 | 4 | v2 rubric structure | `riskAgent.test.ts` TDD pins for the new `buildPrompt` | 3 anchor definitions present + "0 anchors → low" rule present + 3 worked examples present (with actual seed-text bundle shapes) |
-| 5 | 2x2 acceptance gate | `npm run eval --rubric=v2 --risk-only` against dev-labeled 16 + held-out 10 | Dev-labeled specificity ≥30% AND sensitivity ≥67%; held-out specificity ≥30% AND sensitivity ≥50% |
+| 5 | 2x2 acceptance gate | `npx tsx src/scripts/eval.ts --risk-only` against dev-labeled 16 + held-out 10 | Dev-labeled specificity ≥30% AND sensitivity ≥67%; held-out specificity ≥30% AND sensitivity ≥50% |
 
-Signals #1–#4 must pass before signal #5 can be meaningfully evaluated (substrate before gate). Signal #5 is the merge gate.
+Signals #4 and #5 stand unchanged. Signals #1 and #3 are deferred per the API constraint. Signal #2 is conditional on the API supporting the call (it doesn't today; the probe's TDD contract is still satisfied). Signal #5 is the merge gate.
 
-### D10. Score-card delta
+### D10. Score-card delta (scope-reduced)
 | Pillar | Pre-S16 | Post-S16 (predicted) | Why |
 |---|---|---|---|
 | P1 | 5 | 5 | Unchanged — full eval harness from S9 |
-| P2 | 4 | **5** | Held-out section + specificity recovered + 0-anchors rule + variance collapsed |
+| P2 | 4 | **5** *(if commit 3's 2x2 gate passes)* | Held-out section (S15) + specificity recovered by v2 rubric. Variance collapse deferred (API constraint). |
 | P3 | 5 | 5 | Unchanged |
 | P4 | 4 | 4 | Held back by no model card + 0/16 clinician-validated (out of S16 scope) |
 | P5 | 5 | 5 | Unchanged |
@@ -230,7 +232,9 @@ Signals #1–#4 must pass before signal #5 can be meaningfully evaluated (substr
 | P7 | 4 | 4 | Unchanged |
 | P8 | 4 | 4 | Unchanged |
 | P9 | 3 | 3 | Unchanged |
-| **Total** | **89.2** | **~91.0** | P2 4→5 (+1.8) |
+| **Total** | **89.2** | **~91.0** *(if 2x2 passes)* | P2 4→5 (+1.8). If 2x2 fails, P2 stays 4; total 89.2. |
+
+The pillar lift is now conditional on commit 3's rubric alone (no substrate-stability contribution from the pin). If the v2 rubric doesn't recover ≥30% specificity, the pillar stays 4 and the slice ships a 1.8-point net loss in expected lift. The contingency plan in commit 3's commit message handles that path.
 
 ### D11. Engagement operationalization
 - S16 does **not** commit a clinician-engagement timeline. The S15 outreach log is the operational mechanism; S16 makes the v2 rubric available for clinician review via the same `npm run review:render` path that already exists.

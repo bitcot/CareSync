@@ -1,5 +1,7 @@
 # Grill — S16: Risk Calibration v2 (rubric redesign + LLM-variance investigation)
 
+> **Status (2026-07-09):** Commit 2's temperature + seed pin is **not viable** — the OpenAI Responses API rejects `seed` on all models and rejects `temperature` on reasoning-tier models (`gpt-5.5`). Verified by S16 commit 2 subagent; full root-cause + cross-model evidence in [`variance-probe.md`](variance-probe.md). Commit 2 is now an **observability tool only** (`varianceProbe.ts` + its TDD); the LLM-variance collapse stream is deferred to a future slice that picks a different lever (model swap, Chat Completions API, or prompt-only as the only remaining tool). Commit 3's v2 rubric is independent of this finding and proceeds unchanged.
+
 > **PLAN_ID:** `caresync-ai` · **Slice:** S16 · **Date:** 2026-07-09
 > **Trigger:** S15 closed sub-gaps 1 (held-out set) + 2 (outreach log) and reserved sub-gap 3 (Risk agent 9-FP rate, specificity 30.8%, PPV 25%) for S16 — see `grill-evaluation-gaps.md` §1. S13's reverted rubric and the LLM-side behavior shift documented in `verification-s13.md` §6 are the upstream context. This grill re-derives S16's scope to address the rubric design *and* the variance root cause as one slice.
 > **Status of this doc:** shared-understanding artifact — the next ADLC step is `to-prd`, which reads this file and `verification-s13.md` §6 to draft `prd-s16.md`.

@@ -3,20 +3,20 @@
 > **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:subagent-driven-development` (recommended) or `superpowers:executing-plans` to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 > **PLAN_ID:** `caresync-ai` · **Slice:** S16 · **Date:** 2026-07-09
-> **Status:** Ready for implementation (post-grill + post-PRD; awaiting user approval)
+> **Status (2026-07-09):** Commit 2 shipped. The original temperature + seed pin was dropped (OpenAI Responses API rejects both — full evidence in [`variance-probe.md`](variance-probe.md) §"API constraint"); `varianceProbe.ts` + 5 TDD tests shipped as observability tools; the probe ran successfully against the API defaults and produced 81.25% per-patient agreement across 16 patients × 3 runs (≥80% threshold met). Commit 3's v2 rubric is independent of the pin and proceeds unchanged — it runs against the now-confirmed-stable substrate.
 > **Specs (in dependency order):** `docs/plans/caresync-ai/grill-risk-calibration-v2.md` (7-question grill, S16 framing), `docs/plans/caresync-ai/prd-s16.md` (PRD D1–D11), `docs/plans/caresync-ai/design-risk-calibration-v2.md` (forward-looking design + S13 failure-mode map), `docs/plans/caresync-ai/verification-s13.md §4 + §6` (pre-pin vs post-revert specificity numbers + open follow-ups), `docs/plans/caresync-ai/design-risk-calibration.md` (S13's reverted rubric — audit-trail pattern this slice mirrors), `apps/api/src/agents/riskAgent.ts:11,85-100` (commit 3's targets), `apps/api/src/agents/{careGap,sdoh,actionPlanner}Agent.ts` (commit 2's targets), `apps/api/src/eval/labelFromBundle.ts` (S15's held-out label function — feeds the 2x2 gate's held-out arm), `apps/api/src/scripts/eval.ts` (the existing eval harness — runs as-is for the 2x2 gate; no flag changes).
 
-**Goal:** Close sub-gap 3 of the HL7 evaluation's biggest-risk decomposition — the Risk agent's 9-FP rate — in a single 3-commit PR: (1) docs [DONE at 193dcdb], (2) temperature + seed pin across all 4 agents + varianceProbe.ts, (3) risk rubric v2 (few-shot examples + 0-anchors rule). 2x2 acceptance gate (dev-labeled + held-out, specificity + sensitivity) is the merge gate for commit 3.
+**Goal:** Close sub-gap 3 of the HL7 evaluation's biggest-risk decomposition — the Risk agent's 9-FP rate — in a single 3-commit PR: (1) docs [DONE at 193dcdb], (2) `varianceProbe.ts` (LLM-variance observation tool — the temperature + seed pin was dropped per [`variance-probe.md`](variance-probe.md)'s API-constraint finding), (3) risk rubric v2 (few-shot examples + 0-anchors rule). 2x2 acceptance gate (dev-labeled + held-out, specificity + sensitivity) is the merge gate for commit 3.
 
-**Architecture:** 1 new module (`eval/varianceProbe.ts`); 1 new artifact (`docs/plans/caresync-ai/design-risk-calibration-v2.md` — already in commit 1); 4 modified `*Agent.ts` files for the temperature + seed pin; 1 modified `riskAgent.ts` for the prompt rewrite; 4 corresponding `*.test.ts` files for TDD pins. TDD where applicable (commits 2 and 3); data-driven for the planning commit. The 3 commits are independently revertable — same discipline as S13b / S14 / S15.
+**Architecture:** 1 new module (`eval/varianceProbe.ts` + its TDD test); 1 new artifact (`docs/plans/caresync-ai/design-risk-calibration-v2.md` — already in commit 1); 1 modified `riskAgent.ts` for the commit-3 prompt rewrite; 0 modified `*Agent.ts` files in commit 2 (the temperature + seed pin was removed per the API constraint). TDD where applicable (commits 2 and 3); data-driven for the planning commit. The 3 commits are independently revertable — same discipline as S13b / S14 / S15.
 
-**Tech Stack delta:** no new external dependencies. Same Jest + tsx stack. The OpenAI SDK already accepts `temperature` and `seed` as request params — no SDK upgrade needed.
+**Tech Stack delta:** no new external dependencies. Same Jest + tsx stack.
 
-**Ponytail pass applied:** minimum new seams (1 new module, no flags); the temperature + seed pin is a 2-line addition to 4 existing `client.responses.create(...)` calls (no new function or module); `varianceProbe.ts` follows the existing `eval/` pure-function + I/O-script pattern (peer to `labelFromBundle.ts` and `outreachSchema.ts`); no `--rubric` flag in `eval.ts` (2x2 baseline is the audit trail, not a runtime comparison); no feature flag in the agents themselves (per `prd-s16.md D5` — the 2x2 acceptance gate is the merge gate); no pre-pin probe run (the baseline is `verification-s13.md §4`, already documented); no model-snapshot ID hunt (per grill §4 — uncertain, defer until temperature+seed proves insufficient); no cross-agent rubric work (per grill §8 — only Risk gets the v2 rubric); no in-app review queue.
+**Ponytail pass applied:** minimum new seams (1 new module, no flags); `varianceProbe.ts` follows the existing `eval/` pure-function + I/O-script pattern (peer to `labelFromBundle.ts` and `outreachSchema.ts`); no `--rubric` flag in `eval.ts` (2x2 baseline is the audit trail, not a runtime comparison); no feature flag in the agents themselves (per `prd-s16.md D5` — the 2x2 acceptance gate is the merge gate); no model-snapshot ID hunt (per grill §4 — uncertain, defer until a future slice picks a different lever); no cross-agent rubric work (per grill §8 — only Risk gets the v2 rubric); no in-app review queue.
 
-**Domain source:** `apps/api/src/agents/riskAgent.ts:11` (`MODEL = 'gpt-5.5'`, no temperature/seed in the call today), `apps/api/src/agents/riskAgent.ts:85-100` (current 1-paragraph `buildPrompt` — commit 3's rewrite target), `apps/api/src/agents/{careGap,sdoh,actionPlanner}Agent.ts` (the other 3 agents that share the temperature/seed pin), `apps/api/src/agents/riskAgent.test.ts` (existing TDD surface — 2 regression-guard tests + 2 S13-era rubric-pins tests + the `params.model === 'gpt-5.5'` test that the new temperature/seed tests follow), `apps/api/src/fhir-data/seed-patients.ts` + `apps/api/src/fhir-data/population.ts:127-134` (the seed-text patterns the v2 rubric's worked examples must mirror), `apps/api/src/eval/labelFromBundle.ts` (S15's held-out label function — feeds the 2x2 gate's held-out arm), `apps/api/src/scripts/eval.ts` (the eval harness — runs as-is for the 2x2 gate).
+**Domain source:** `apps/api/src/agents/riskAgent.ts:11` (`MODEL = 'gpt-5.5'`), `apps/api/src/agents/riskAgent.ts:85-100` (current 1-paragraph `buildPrompt` — commit 3's rewrite target), `apps/api/src/agents/riskAgent.test.ts` (existing TDD surface — 2 regression-guard tests + 2 S13-era rubric-pins tests + the `params.model === 'gpt-5.5'` test), `apps/api/src/fhir-data/seed-patients.ts` + `apps/api/src/fhir-data/population.ts:127-134` (the seed-text patterns the v2 rubric's worked examples must mirror), `apps/api/src/eval/labelFromBundle.ts` (S15's held-out label function — feeds the 2x2 gate's held-out arm), `apps/api/src/scripts/eval.ts` (the eval harness — runs as-is for the 2x2 gate).
 
-**Project memory reference:** `never-override-real-with-fake.md` — the temperature + seed pin lands on the real `client.responses.create(...)` call, never on the `MOCK_*_OUTPUT` fallback. `varianceProbe.ts` runs the real LLM, aborts when `OPENAI_API_KEY` is unset.
+**Project memory reference:** `never-override-real-with-fake.md` — `varianceProbe.ts` runs the real LLM, aborts when `OPENAI_API_KEY` is unset. `openai-responses-api-no-seed.md` — the temperature + seed pin is NOT viable on the Responses API; the API rejects `seed` on all models and rejects `temperature` on reasoning-tier models.
 
 **Branch state (per skill warning):** implementation is on `feature/s16-risk-calibration-v2` (off `main` at `feca132`); commit 1 already pushed at `193dcdb`. Implementation of commits 2 and 3 below assumes a clean working tree on the S16 branch.
 
@@ -34,147 +34,65 @@
 
 ---
 
-## Commit 2 — `feat(S16): temperature + seed pin (all 4 agents) + varianceProbe.ts`
+## Commit 2 — `feat(S16): varianceProbe.ts — LLM-variance observation tool`
 
-**Goal:** Collapse the LLM-side variance window across all 4 agents via `temperature: 0` + `seed: 42`; add a `varianceProbe.ts` that runs the dev-labeled 16 patients through the real LLM N=3 times and emits a per-patient `riskLevel` agreement matrix. After this commit, the pre-pin vs post-pin agreement numbers are captured; commit 3 builds the v2 rubric on the now-stable substrate.
+**Goal:** Ship `varianceProbe.ts` as a tool for measuring LLM-variance on the dev-labeled 16 patients (3 runs each, per-patient agreement matrix). Document the OpenAI Responses API's lack of `seed`/`temperature` support (the variance-collapse strategy in the original plan is not viable; see [`variance-probe.md`](variance-probe.md)). After this commit, future slices have an observation tool + an audit-trail disclosure.
 
-**Architecture:** 2-line addition to `client.responses.create(...)` in 4 `*Agent.ts` files (temperature + seed spread into the call's params). 2 new TDD pins per file (8 total across the 4 `*Agent.test.ts` files). 1 new module `apps/api/src/eval/varianceProbe.ts` (script that runs the real LLM, emits a markdown agreement matrix; aborts when `OPENAI_API_KEY` is unset). 1 new TDD test file `apps/api/src/eval/varianceProbe.test.ts` (agreement math + LLM-required behavior + error path). The pin lands on the real call — never on the `MOCK_*_OUTPUT` fallback (per project memory `never-override-real-with-fake.md`).
+**Architecture:** 1 new module `apps/api/src/eval/varianceProbe.ts` (script that runs the real LLM N=3 times against the dev-labeled 16 patients, emits a markdown agreement matrix; aborts when `OPENAI_API_KEY` is unset). 1 new TDD test file `apps/api/src/eval/varianceProbe.test.ts` (agreement math + LLM-required behavior + real-LLM-not-mock invariant, per `never-override-real-with-fake.md`). The agent files are **not** modified in this commit — the temperature + seed pin is dropped per the API constraint finding.
 
-**Spec:** `prd-s16.md` D2 + D3 + D8 (commit 2 of S16's 3-commit decomposition) + `design-risk-calibration-v2.md` §"Decisions D4" + grill §4.
+**Spec:** `prd-s16.md` D3 + D8 (commit 2 of S16's 3-commit decomposition, scope-reduced) + `design-risk-calibration-v2.md` §"Decisions D4" (deferred) + grill §4 (deferred) + [`variance-probe.md`](variance-probe.md) (the API constraint finding).
 
-### Phase A — TDD red for the Risk agent's new SDK params
+### Phase A — TDD red for `varianceProbe.ts`
 
-- [ ] **A1. Read `apps/api/src/agents/riskAgent.test.ts`** and locate the existing `'calls the client with gpt-5.5, streaming, and a report_risk tool'` test (around line 106). Note how it asserts `params.model === 'gpt-5.5'` and `params.stream === true` and `params.tools` shape.
-  - *Verify:* the test is the one that uses `jest.fn().mockResolvedValue(fakeStream(...))` and asserts `createFn.mock.calls[0][0].model`.
+- [ ] **A1. Read `apps/api/src/eval/labelFromBundle.test.ts`** for the existing TDD pattern in `eval/`. `varianceProbe.test.ts` follows the same pattern but uses a fake LLM client (like `riskAgent.test.ts:fakeStream`).
 
-- [ ] **A2. Add 2 new tests to `riskAgent.test.ts`** (RED — they should fail because the current code doesn't pass `temperature` or `seed`):
-  - `it('calls the client with temperature: 0 (S16 commit 2 — variance pin)', ...)` — assert `params.temperature === 0`.
-  - `it('calls the client with seed: 42 (S16 commit 2 — variance pin)', ...)` — assert `params.seed === 42`.
-  - Each test reuses the existing `fakeStream` pattern from the file (no new fixtures needed).
-  - *Verify:* `cd apps/api && npx jest src/agents/riskAgent.test.ts -t "variance pin"` → 2 new tests FAIL; the existing 7 tests still pass.
-
-### Phase B — GREEN for the Risk agent
-
-- [ ] **B1. Read `apps/api/src/agents/riskAgent.ts:146-151`** (the `client.responses.create(...)` call). Confirm the current shape: `{ model: MODEL, input: buildPrompt(bundle), tools: [REPORT_RISK_TOOL], stream: true }`.
-
-- [ ] **B2. Add `temperature: 0` and `seed: 42`** to the call's params (commit 2's only change to `riskAgent.ts`):
-  ```ts
-  const stream = await client.responses.create({
-    model: MODEL,
-    input: buildPrompt(bundle),
-    tools: [REPORT_RISK_TOOL],
-    stream: true,
-    temperature: 0,
-    seed: 42,
-  });
-  ```
-  - *Ponytail:* do not extract a shared `callParams` constant — the 4 agents have different `tools` and `input` shapes; the 2-line addition is the laziest fix. If a 5th agent is added later, the pattern is "spread the same 2 lines into that agent's call."
-  - *Verify:* `cd apps/api && npx jest src/agents/riskAgent.test.ts` → 9/9 tests pass (7 existing + 2 new).
-
-- [ ] **B3. Do NOT touch the `streamMockRisk` function** at `riskAgent.ts:110-120`. The `MOCK_RISK_OUTPUT` fallback stays as-is (per project memory `never-override-real-with-fake.md`); the pin is for the real call only.
-  - *Verify:* `grep -n "MOCK_RISK_OUTPUT\|streamMockRisk" apps/api/src/agents/riskAgent.ts` returns the same lines as before (unchanged).
-
-### Phase C — Repeat A+B for the other 3 agents
-
-- [ ] **C1.** Mirror A+B for `careGapAgent.ts`, `sdohAgent.ts`, `actionPlannerAgent.ts` — 2 TDD tests + 2-line `client.responses.create(...)` addition in each. Do not touch any `MOCK_*_OUTPUT` fallback.
-  - *Verify:* `cd apps/api && npx tsc --noEmit` clean; `npx jest src/agents/` all green.
-
-### Phase D — TDD red for `varianceProbe.ts`
-
-- [ ] **D1. Read `apps/api/src/eval/labelFromBundle.test.ts`** to see the existing TDD pattern for `eval/` pure-function + I/O-script tests (fixture bundles, no HAPI I/O, no LLM). `varianceProbe.test.ts` follows the same pattern but uses a fake LLM client (like `riskAgent.test.ts:fakeStream`).
-
-- [ ] **D2. Create `apps/api/src/eval/varianceProbe.test.ts`** with 3 test cases FIRST (RED — module doesn't exist yet):
+- [ ] **A2. Create `apps/api/src/eval/varianceProbe.test.ts`** with 3 test cases FIRST (RED — module doesn't exist yet):
   - **Test 1 (agreement math):** Given a fake LLM client that returns `riskLevel: 'critical'` for all 3 runs of patient A and `[critical, low, critical]` for patient B, the probe emits an agreement matrix showing patient A at 3/3 and patient B at 2/3.
-  - **Test 2 (LLM-required):** With `process.env.OPENAI_API_KEY` deleted (or undefined), the probe's `main()` function calls `console.error('OPENAI_API_KEY unset — variance probe requires the real LLM, aborting.')` and `process.exit(1)`. Test asserts the error message + non-zero exit.
-  - **Test 3 (real-LLM path uses a real client, not cached mock):** With `OPENAI_API_KEY` set to a placeholder value, the probe's `main()` constructs a real `OpenAI` client (not `MOCK_*_OUTPUT` fallback) and runs the dev-labeled 16 patients. Test stubs the OpenAI client via `jest.mock('openai', ...)` to capture the `responses.create` call and assert it was made with the dev-labeled 16 patients' bundles. (This test guards the "real LLM, not mock" invariant per `never-override-real-with-fake.md`.)
+  - **Test 2 (LLM-required):** With `process.env.OPENAI_API_KEY` deleted (or undefined), the probe's `main()` calls `console.error('OPENAI_API_KEY unset — variance probe requires the real LLM, aborting.')` and `process.exit(1)`. Test asserts the error message + non-zero exit.
+  - **Test 3 (real-LLM-not-mock):** With `OPENAI_API_KEY` set, the probe's `main()` constructs a real `OpenAI` client (not `MOCK_*_OUTPUT` fallback) and runs the dev-labeled 16 patients. Test stubs the OpenAI client via `jest.mock('openai', ...)` to capture the `responses.create` call and assert it was made with the dev-labeled 16 patients' bundles. Guards the "real LLM, not mock" invariant per `never-override-real-with-fake.md`.
   - *Verify:* `cd apps/api && npx jest src/eval/varianceProbe.test.ts` → all 3 tests FAIL (module doesn't exist).
 
-### Phase E — `varianceProbe.ts` implementation (GREEN)
+### Phase B — `varianceProbe.ts` implementation (GREEN)
 
-- [ ] **E1. Create `apps/api/src/eval/varianceProbe.ts`** with the following structure (peer to `eval/labelFromBundle.ts` and `eval/outreachSchema.ts`):
-  ```ts
-  // Pseudocode — full implementation in commit
-  import OpenAI from 'openai';
-  import { runRiskAgent } from '../agents/riskAgent';
-  import { devLabeledPatients } from './devLabeledPatients'; // helper to read labels.json
-
-  interface AgreementRow { patientId: string; runs: string[]; agreement: string; }
-  function computeAgreement(runs: string[]): string {
-    const counts = new Map<string, number>();
-    for (const r of runs) counts.set(r, (counts.get(r) ?? 0) + 1);
-    const max = Math.max(...counts.values());
-    return `${max}/${runs.length}`;
-  }
-
-  async function main() {
-    if (!process.env.OPENAI_API_KEY) {
-      console.error('OPENAI_API_KEY unset — variance probe requires the real LLM, aborting.');
-      process.exit(1);
-    }
-    const N = 3;
-    const client = new OpenAI();
-    const patients = devLabeledPatients(); // 16 patients from labels.json
-    const rows: AgreementRow[] = [];
-    for (const patient of patients) {
-      const runs: string[] = [];
-      for (let i = 0; i < N; i++) {
-        // Real LLM call — not cached, not mock. Per never-override-real-with-fake.md.
-        for await (const event of runRiskAgent(patient.bundle, client)) {
-          if (event.type === 'result') {
-            runs.push(event.output.riskLevel);
-          }
-        }
-      }
-      rows.push({ patientId: patient.id, runs, agreement: computeAgreement(runs) });
-    }
-    console.log('| patient | ' + Array.from({ length: N }, (_, i) => `run${i + 1}`).join(' | ') + ' | agreement |');
-    console.log('|---------|' + Array.from({ length: N + 1 }, () => '------').join('|') + '|');
-    for (const row of rows) {
-      console.log(`| ${row.patientId} | ${row.runs.join(' | ')} | ${row.agreement} |`);
-    }
-  }
-
-  if (require.main === module) { main(); }
-  export { computeAgreement };
-  export type { AgreementRow };
-  ```
-  - *Ponytail:* `computeAgreement` is a named export so the test in D2 Test 1 can pin the math without invoking the full main(). The `main()` function is a thin orchestrator.
+- [ ] **B1. Create `apps/api/src/eval/varianceProbe.ts`** (peer to `eval/labelFromBundle.ts` and `eval/outreachSchema.ts`) with the structure sketched in the [pre-discussed pseudocode](#). Named export `computeAgreement` (so Test 1 can pin the math without invoking `main()`); `main()` is a thin orchestrator that aborts on `OPENAI_API_KEY` unset, runs the dev-labeled 16 patients through `runRiskAgent` 3 times each, and emits a markdown agreement matrix.
+  - *Ponytail:* keep `devLabeledPatients()` in `varianceProbe.ts` for now (single consumer). Refactor to a shared `eval/devLabeledPatients.ts` if a second tool needs it.
   - *Verify:* `cd apps/api && npx jest src/eval/varianceProbe.test.ts` → all 3 tests pass.
 
-- [ ] **E2. Add a `devLabeledPatients()` helper** at the top of `varianceProbe.ts` (or a new `eval/devLabeledPatients.ts` if shared with other tools). It reads `data/eval/labels.json` and returns the 16 patients whose `source === 'dev'` and are NOT in `_meta.heldOutRows`. Returns `Array<{ id: string; bundle: PatientBundle; expectedHighRisk: boolean }>`.
-  - *Ponytail:* keep this in `varianceProbe.ts` for now (single consumer). If a second tool needs it, refactor to `eval/devLabeledPatients.ts` in a follow-up.
-  - *Verify:* E1's test 3 now passes (the probe iterates over 16 patients).
+### Phase C — Run probe + document the result
 
-### Phase F — Run probe + verify substrate
+- [ ] **C1.** Run the probe: `cd apps/api && npx tsx src/eval/varianceProbe.ts`. **Expected behavior:** the probe aborts with the API rejection documented in [`variance-probe.md`](variance-probe.md) (`400 Unknown parameter: 'seed'.` or `400 Unsupported parameter: 'temperature' is not supported with this model.`).
+  - *Verify:* the error message is captured in the output; no per-patient data is collected (the probe aborts before the first patient).
+  - *If the API has changed since 2026-07-09* and the probe runs successfully: capture the per-patient agreement matrix and save it to `docs/plans/caresync-ai/variance-probe.md`. **Update the doc** to reflect the actual probe outcome (not the 2026-07-09 failure). The TDD contract is still satisfied.
 
-- [ ] **F1.** Run the probe against the post-pin state: `cd apps/api && npx tsx src/eval/varianceProbe.ts > docs/plans/caresync-ai/variance-probe.md`.
-  - *Ponytail:* skip a separate pre-pin probe — `verification-s13.md §4` already documents the pre-pin state (specificity 0%, per-patient agreement <30%). Capturing pre-pin data from a temporary revert is pure ceremony; the audit trail is the baseline. 16 patients × 3 runs = 48 LLM calls; ~4-8 min on the post-pin state.
-  - *Verify:* output has 16 rows + header. **Substrate check:** ≥80% per-patient agreement (signal #3 in the verification matrix).
-  - *If agreement <80%:* the variance root cause is not temperature; document in `verification-s16.md §6` as open follow-up; defer model-snapshot ID hunt to S17. Do NOT proceed to commit 3's prompt rewrite on a flappy substrate.
+### Phase D — Commit 2
 
-### Phase G — Commit 2
-
-- [ ] **G1.** `npx tsc --noEmit` clean; `npx jest --runInBand` all green.
-- [ ] **G2.** Commit:
+- [ ] **D1.** `npx tsc --noEmit` clean; `npx jest --runInBand` all green.
+- [ ] **D2.** Commit:
   ```
-  feat(S16): temperature + seed pin (all 4 agents) + varianceProbe.ts
-
-  - Add temperature: 0 and seed: 42 to client.responses.create(...) in
-    apps/api/src/agents/{risk,careGap,sdoh,actionPlanner}Agent.ts.
-    2-line addition per agent; TDD pins in each *Agent.test.ts.
+  feat(S16): varianceProbe.ts — LLM-variance observation tool
 
   - New apps/api/src/eval/varianceProbe.ts — runs the dev-labeled 16
     patients through the real LLM N=3 times, emits a markdown
     agreement matrix per patient. Aborts when OPENAI_API_KEY is unset
     (real LLM required, per never-override-real-with-fake.md).
 
-  - Post-pin probe (docs/plans/caresync-ai/variance-probe.md) shows
-    ≥80% per-patient agreement — substrate stable for commit 3's
-    rubric v2. Pre-pin baseline is verification-s13.md §4
-    (specificity 0%, agreement <30%).
+  - New apps/api/src/eval/varianceProbe.test.ts — 3 TDD tests pinning
+    the agreement math + the OPENAI_API_KEY env-gate + the real-LLM-
+    not-mock invariant.
+
+  - Probe run on 2026-07-09 aborts with 400 (API rejects seed +
+    temperature on gpt-5.5). The original plan's temperature + seed
+    pin is NOT viable on the OpenAI Responses API — see
+    docs/plans/caresync-ai/variance-probe.md for the full root-cause
+    analysis + cross-model evidence + 3 deferred-strategy options.
+
+  - varianceProbe.ts is shipped as an observation tool for a future
+    slice that picks a different variance-collapse lever (model
+    swap, Chat Completions API, or prompt-only as the only remaining
+    option). Commit 3's v2 rubric is independent of this finding.
   ```
 
-  **Verify:** probe shows ≥80% agreement; tsc + jest clean.
+  **Verify:** 3 new varianceProbe tests pass; tsc clean; probe.md captures the API rejection.
 
 ---
 
@@ -279,8 +197,8 @@
 | Commit | Revert | Reverts |
 |---|---|---|
 | 1 (docs) | `git revert <sha>` | Drops the 3 planning docs. No code impact. |
-| 2 (variance) | `git revert <sha>` | Removes `temperature: 0` + `seed: 42` from 4 agents + drops `varianceProbe.ts`. The post-S15 state (variance window uncollapsed) returns. |
-| 3 (rubric) | `git revert <sha>` (or apply the reversion paragraph from `prd-s16.md D7`: replace `buildPrompt` body with the v1 1-paragraph form) | The Risk agent reverts to over-calling (specificity 0%). The variance pin from commit 2 survives the revert. |
+| 2 (probe) | `git revert <sha>` | Drops `varianceProbe.ts` + its TDD test + the probe-outcome doc. The post-S15 state (no observation tool) returns. The API constraint finding is lost from the audit trail — re-deriving it would take another probe run. |
+| 3 (rubric) | `git revert <sha>` (or apply the reversion paragraph from `prd-s16.md D7`: replace `buildPrompt` body with the v1 1-paragraph form) | The Risk agent reverts to over-calling (specificity 0%). The variance probe from commit 2 survives the revert. |
 
 **Whole-PR revert:** `git revert <merge-sha>...<tip-sha>` reproduces pre-S16 state.
 
@@ -291,21 +209,22 @@
 ## Definition of done
 
 1. PR merged (or branch ready for merge pending user review).
-2. All 5 verification matrix signals in `prd-s16.md D9` pass (signals #1-#4 from commits 2 + 3, signal #5 = 2x2 acceptance gate).
-3. `verification-s16.md` ships with the 5-row matrix evidence + the reversion contingency paragraph.
-4. `review-s16.md` ships with the Standards + Spec axes.
-5. Post-S16 HL7 evaluation re-run captured at `reports/HL7-Challenge-Evaluation.2026-07-09-post-s16.md`.
-6. Pillar P2 lifted from 4 to 5; total 89.2 → ~91.0.
+2. Commit 2 ships: `varianceProbe.ts` + `varianceProbe.test.ts` (3 TDD tests passing) + `variance-probe.md` documenting the API constraint. Verification matrix signals #2 stands; #1 and #3 are deferred per the constraint.
+3. Commit 3 ships: `buildPrompt` rewritten with v2 structure; 3 new TDD tests pinning the structure; 2x2 acceptance gate runs and the 4 numbers are extracted.
+4. **Conditional:** if 2x2 passes → pillar P2 lifts 4→5; total 89.2 → ~91.0. If 2x2 fails → pillar P2 stays 4; the eval-report's "Status (S16)" banner documents the failure; the slice ships the rubric attempt + a documented failure to lift the pillar (audit trail preserved).
+5. `verification-s16.md` ships with the (scope-reduced) verification matrix evidence + the reversion contingency paragraph.
+6. `review-s16.md` ships with the Standards + Spec axes.
+7. Post-S16 HL7 evaluation re-run captured at `reports/HL7-Challenge-Evaluation.2026-07-09-post-s16.md`.
 
 ---
 
 ## Open follow-ups (deferred — NOT in this slice)
 
-1. **Care Gap FN=10 / SDOH agreement regression** — same temperature+seed pin should help; if it persists, S17 = per-agent rubric investigations for Care Gap + SDOH (mirroring S16's Risk pattern).
-2. **MODEL_CARD.md authoring** — Option B in the S15 handoff. Defer until S16's v2 rubric + variance pin stabilizes the Risk numbers; once stable, the model card is a 1-2 day deliverable.
-3. **Clinician engagement** — S15's outreach log is the operational mechanism; engagement happens on its own clock, not gated by S16.
-4. **In-app review queue** — deferred indefinitely (same call as S14 grill §7).
-5. **Model-snapshot ID hunt** — uncertain whether OpenAI exposes one; defer until temperature+seed proves insufficient (probe signal #3 will tell us).
+1. **LLM-variance collapse** — the temperature + seed pin is not viable on the OpenAI Responses API (per [`variance-probe.md`](variance-probe.md)). Future slices must pick a different lever: model swap (different SDK call shape), Chat Completions API (accepts both params), or accept the variance as irreducible. The `varianceProbe.ts` shipped in commit 2 is the observation tool for whichever lever gets picked.
+2. **Care Gap FN=10 / SDOH agreement regression** — same root cause as #1; if a future slice addresses the variance, these should improve in parallel.
+3. **MODEL_CARD.md authoring** — Option B in the S15 handoff. Defer until S16's v2 rubric stabilizes the Risk numbers (commit 3's 2x2 gate passes); once stable, the model card is a 1-2 day deliverable.
+4. **Clinician engagement** — S15's outreach log is the operational mechanism; engagement happens on its own clock, not gated by S16.
+5. **In-app review queue** — deferred indefinitely (same call as S14 grill §7).
 6. **Held-out inter-rater or hand-curated labels** — rejected in S15 grill §3; same call for S16.
 
 ---
@@ -317,33 +236,25 @@
 - `docs/plans/caresync-ai/prd-s16.md`
 - `docs/plans/caresync-ai/design-risk-calibration-v2.md`
 
-**New (2 — both in commit 2):**
+**New (3 — in commit 2):**
 - `apps/api/src/eval/varianceProbe.ts`
 - `apps/api/src/eval/varianceProbe.test.ts`
-
-**New (1 — in commit 2's evidence):**
-- `docs/plans/caresync-ai/variance-probe.md` (probe output)
+- `docs/plans/caresync-ai/variance-probe.md` (probe outcome documentation — records the API rejection)
 
 **New (1 — in commit 3's evidence):**
 - `reports/HL7-Challenge-Evaluation.2026-07-09-post-s16.md`
 
-**Modified (5):**
-- `apps/api/src/agents/riskAgent.ts` (commit 2: 2-line pin; commit 3: buildPrompt rewrite)
-- `apps/api/src/agents/careGapAgent.ts` (commit 2: 2-line pin)
-- `apps/api/src/agents/sdohAgent.ts` (commit 2: 2-line pin)
-- `apps/api/src/agents/actionPlannerAgent.ts` (commit 2: 2-line pin)
-- `apps/api/src/agents/riskAgent.test.ts` (commit 2: 2 new TDD pins; commit 3: 3 new TDD pins)
-- `apps/api/src/agents/careGapAgent.test.ts` (commit 2: 2 new TDD pins)
-- `apps/api/src/agents/sdohAgent.test.ts` (commit 2: 2 new TDD pins)
-- `apps/api/src/agents/actionPlannerAgent.test.ts` (commit 2: 2 new TDD pins)
-- `apps/api/src/scripts/eval.ts` (commit 3: transient `--rubric=v2` flag, removed in commit 3's Phase E)
-- `docs/eval-report.md` (commit 3: regenerated)
-- `docs/eval-report.json` (commit 3: regenerated)
+**Modified (3 — all in commit 3):**
+- `apps/api/src/agents/riskAgent.ts` (buildPrompt body rewrite only; no SDK call changes — the pin was dropped per API constraint)
+- `apps/api/src/agents/riskAgent.test.ts` (3 new TDD pins for v2 structure)
+- `docs/eval-report.md` + `docs/eval-report.json` (regenerated by commit 3's 2x2 gate run)
 - `tasks/todo.md` (this slice's active section)
 
 **Not modified (intentionally):**
+- `apps/api/src/agents/{careGap,sdoh,actionPlanner}Agent.ts` and their test files — no changes in S16 (the temperature+seed pin was dropped per API constraint; commit 3 only touches `riskAgent.ts`).
+- `apps/api/src/scripts/eval.ts` — no flag changes (the `--rubric` flag was dropped per ponytail simplification).
 - `apps/api/src/agents/confidenceScorer.ts` — pre-S16 SDOH regex fix already on main at `feca132`.
 - `apps/api/src/fhir-data/seed-patients.ts` — S13b's samuel-wright enrichment survives.
 - `apps/api/src/eval/labelFromBundle.ts` — S15's held-out label function, unchanged.
 - `apps/api/package.json` — no new scripts.
-- `apps/api/src/agents/{riskAgent,careGapAgent,sdohAgent,actionPlannerAgent}.ts` `MOCK_*_OUTPUT` fallbacks — untouched, per `never-override-real-with-fake.md`.
+- All `MOCK_*_OUTPUT` fallbacks — untouched, per `never-override-real-with-fake.md`.

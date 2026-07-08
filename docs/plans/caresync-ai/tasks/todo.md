@@ -4,11 +4,11 @@
 
 Source: `implementation-plan-s16.md` · Spec: `prd-s16.md` (D1–D11) · Decisions: `grill-risk-calibration-v2.md` (7-question grill, 2026-07-09) · Design: `design-risk-calibration-v2.md`. Prior slice S15 merged in PR #26 (commit `5f27418` on main); pre-S16 SDOH regex fix already on main at `feca132`.
 
-**Goal:** Close sub-gap 3 of the HL7 evaluation's biggest-risk decomposition — the Risk agent's 9-FP rate (specificity 30.8%, PPV 25%) — in a single 3-commit PR: (1) docs [DONE at 193dcdb], (2) temperature + seed pin across all 4 agents + varianceProbe.ts, (3) risk rubric v2 (few-shot examples + 0-anchors rule). 2x2 acceptance gate (dev-labeled + held-out, specificity + sensitivity) is the merge gate for commit 3.
+**Goal:** Close sub-gap 3 of the HL7 evaluation's biggest-risk decomposition — the Risk agent's 9-FP rate (specificity 30.8%, PPV 25%) — in a single 3-commit PR: (1) docs [DONE at 193dcdb], (2) `varianceProbe.ts` (LLM-variance observation tool — the temperature+seed pin was dropped per [`variance-probe.md`](variance-probe.md)'s API constraint finding), (3) risk rubric v2 (few-shot examples + 0-anchors rule). 2x2 acceptance gate (dev-labeled + held-out, specificity + sensitivity) is the merge gate for commit 3.
 
-**Architecture:** 1 new module (`eval/varianceProbe.ts`); 1 new artifact (`design-risk-calibration-v2.md` — already in commit 1); 4 modified `*Agent.ts` files for the temperature + seed pin; 1 modified `riskAgent.ts` for the prompt rewrite; 4 corresponding `*.test.ts` files for TDD pins. TDD where applicable (commits 2 and 3); data-driven for commit 1.
+**Architecture:** 1 new module (`eval/varianceProbe.ts` + its TDD test); 1 new artifact (`design-risk-calibration-v2.md` — already in commit 1); 1 modified `riskAgent.ts` for the commit-3 prompt rewrite; 0 modified `*Agent.ts` files in commit 2 (the temperature + seed pin was dropped per the API constraint finding in `variance-probe.md`). TDD where applicable (commits 2 and 3); data-driven for commit 1.
 
-**Ponytail pass applied:** minimum new seams (1 new module, no flags); the temperature + seed pin is a 2-line addition to 4 existing `client.responses.create(...)` calls; `varianceProbe.ts` follows the existing `eval/` pure-function + I/O-script pattern; no `--rubric` flag in `eval.ts` (2x2 baseline is the audit trail, not a runtime comparison); no feature flag in the agents themselves (the 2x2 acceptance gate is the merge gate, per `prd-s16.md D5`); no pre-pin probe run (the baseline is `verification-s13.md §4`, already documented); no model-snapshot ID hunt (per grill §4); no cross-agent rubric work (per grill §8); no in-app review queue.
+**Ponytail pass applied:** minimum new seams (1 new module, no flags); `varianceProbe.ts` follows the existing `eval/` pure-function + I/O-script pattern; no `--rubric` flag in `eval.ts` (2x2 baseline is the audit trail, not a runtime comparison); no feature flag in the agents themselves (the 2x2 acceptance gate is the merge gate, per `prd-s16.md D5`); no model-snapshot ID hunt (per grill §4); no cross-agent rubric work (per grill §8); no in-app review queue.
 
 **Branch state (per skill warning):** implementation is on `feature/s16-risk-calibration-v2` (off `main` at `feca132`); commit 1 already pushed at `193dcdb`.
 
@@ -25,22 +25,18 @@ Source: `implementation-plan-s16.md` · Spec: `prd-s16.md` (D1–D11) · Decisio
 
 ---
 
-## Commit 2 — `feat(S16): temperature + seed pin (all 4 agents) + varianceProbe.ts`
+## Commit 2 — `feat(S16): varianceProbe.ts — LLM-variance observation tool`
 
-- [ ] **A1.** Locate existing `params.model === 'gpt-5.5'` test in `riskAgent.test.ts:106`.
-- [ ] **A2.** Add 2 TDD tests for `params.temperature === 0` + `params.seed === 42` in `riskAgent.test.ts`. **RED**: tests fail.
-- [ ] **B1.** Read `riskAgent.ts:146-151` (the `client.responses.create(...)` call).
-- [ ] **B2.** Add `temperature: 0` + `seed: 42` to the call's params. **GREEN**: A2's tests pass.
-- [ ] **B3.** Verify `streamMockRisk` (the `MOCK_RISK_OUTPUT` fallback) is unchanged — pin lands on the real call only, per `never-override-real-with-fake.md`.
-- [ ] **C1.** Mirror A+B for `careGapAgent.ts`, `sdohAgent.ts`, `actionPlannerAgent.ts` (2 TDD tests + 2-line `client.responses.create(...)` addition in each).
-- [ ] **D1.** Read `eval/labelFromBundle.test.ts` for the existing TDD pattern.
-- [ ] **D2.** Create `eval/varianceProbe.test.ts` with 3 tests (agreement math, LLM-required, real-LLM-not-mock). **RED**: module doesn't exist.
-- [ ] **E1.** Create `eval/varianceProbe.ts` with `computeAgreement` (named export) + `main()` (real LLM, aborts on `OPENAI_API_KEY` unset, emits markdown table). **GREEN**: D2's tests pass.
-- [ ] **F1.** Run probe: `cd apps/api && npx tsx src/eval/varianceProbe.ts > docs/plans/caresync-ai/variance-probe.md`. **Verify:** ≥80% per-patient agreement (substrate check).
-- [ ] **G1.** `npx tsc --noEmit` clean; `npx jest --runInBand` all green.
-- [ ] **G2.** Commit: `feat(S16): temperature + seed pin (all 4 agents) + varianceProbe.ts`. Push to origin.
+> **Scope-reduced** from the original plan. The temperature + seed pin across all 4 agents was dropped per [`variance-probe.md`](variance-probe.md)'s finding that the OpenAI Responses API rejects both `seed` (all models) and `temperature` (reasoning tier). Commit 2 ships the observation tool only; the variance-collapse strategy is deferred to a future slice that picks a different lever.
 
-**Verify:** variance probe pre/post-pin numbers in eval-report disclosure; 309 tests pass; tsc clean.
+- [ ] **A1.** Read `eval/labelFromBundle.test.ts` for the existing TDD pattern in `eval/`.
+- [ ] **A2.** Create `eval/varianceProbe.test.ts` with 3 tests (agreement math, LLM-required env-gate, real-LLM-not-mock invariant). **RED**: module doesn't exist.
+- [ ] **B1.** Create `eval/varianceProbe.ts` with `computeAgreement` (named export) + `main()` (real LLM, aborts on `OPENAI_API_KEY` unset, emits markdown agreement matrix). **GREEN**: A2's tests pass.
+- [ ] **C1.** Run probe: `cd apps/api && npx tsx src/eval/varianceProbe.ts`. **Expected:** aborts with documented API rejection (`400 Unknown parameter: 'seed'.`). Save the output to `docs/plans/caresync-ai/variance-probe.md`.
+- [ ] **D1.** `npx tsc --noEmit` clean; `npx jest --runInBand` all green.
+- [ ] **D2.** Commit: `feat(S16): varianceProbe.ts — LLM-variance observation tool`. Push to origin.
+
+**Verify:** 3 new varianceProbe tests pass; probe.md captures the API rejection; tsc + jest clean.
 
 ---
 
