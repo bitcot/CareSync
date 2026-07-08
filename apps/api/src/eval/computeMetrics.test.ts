@@ -147,7 +147,14 @@ describe('computeMetrics (Seam 4 — S9 A2, pure, fixed fixture)', () => {
       labeledCount: 4,
     });
 
-    expect(result.sdoh).toEqual({ agreementRate: 0.75, agreements: 3, total: 4 });
+    expect(result.sdoh).toEqual({
+      agreementRate: 0.75,
+      agreements: 3,
+      total: 4,
+      // p1 expected=true/predicted=true → TP; p2 expected=false/predicted=false → TN;
+      // p3 expected=true/predicted=false → FN; p4 expected=false/predicted=false → TN.
+      matrix: { truePositive: 1, trueNegative: 2, falsePositive: 0, falseNegative: 1 },
+    });
 
     expect(result.actionPlanner.notes).toEqual([
       { patientId: 'p1', taskCount: 1, taskTitles: ['Task A'] },

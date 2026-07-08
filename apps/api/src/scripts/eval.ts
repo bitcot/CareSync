@@ -189,11 +189,25 @@ function renderMarkdown(labels: LabelRow[], run: EvalRunResult, metrics: Metrics
   lines.push('');
   lines.push(`Generated: ${new Date().toISOString()}`);
   lines.push('');
+  // S14 — Status disclosure is now data-driven: count `source: "clinician"`
+  // rows in the label file (a row's source flips when `npm run review:apply`
+  // processes a clinician override). Until that count is non-zero, the
+  // baseline is dev-labeled and the disclosure still says so.
+  const clinicianCount = labels.filter((l) => l.source === 'clinician').length;
+  const devCount = labels.length - clinicianCount;
+  const clinicianPct = labels.length > 0 ? ((clinicianCount / labels.length) * 100).toFixed(1) : '0.0';
+  const devPct = labels.length > 0 ? ((devCount / labels.length) * 100).toFixed(1) : '0.0';
   lines.push(
-    '**Status: DEV-LABELED BASELINE, NOT CLINICIAN-VALIDATED (GD8).** Ground truth is drawn from `data/eval/labels.json`, ' +
-      'whose `source` field is `"dev"` for every row today. Every row carries a `clinicianOverride` slot a clinician can ' +
-      'fill in later to upgrade this baseline without any code change. Do not present these numbers as clinician-reviewed.'
+    `**Status (S14):** ${clinicianCount} of ${labels.length} clinician-validated (${clinicianPct}%), ` +
+      `${devCount} of ${labels.length} dev-labeled (${devPct}%).`
   );
+  if (clinicianCount === 0) {
+    lines.push(
+      ' **Not clinician-validated (GD8).** Ground truth is drawn from `data/eval/labels.json`, ' +
+        'whose `source` field is `"dev"` for every row today. Every row carries a `clinicianOverride` slot a clinician can ' +
+        'fill in (via `npm run review:render` → `npm run review:apply`) to upgrade this baseline without any code change.'
+    );
+  }
   lines.push('');
   lines.push(
     '**Status (S13b):** The S13 calibration attempt (Risk-prompt rubric mirroring `riskScoreFor()` ≥ 75) was reverted after live re-eval ' +
@@ -259,8 +273,13 @@ function renderMarkdown(labels: LabelRow[], run: EvalRunResult, metrics: Metrics
   lines.push('');
   lines.push(
     `- Agreement rate: ${formatPct(metrics.sdoh.agreementRate)} (${metrics.sdoh.agreements}/${metrics.sdoh.total}). ` +
-      'Read alongside the SDOH limitation noted in `data/eval/labels.json` `_meta.limitations` — only one positive ' +
-      'example (maria-chen) exists in this dataset, so this rate is easy to game with an always-negative predictor.'
+      'S14 rebalance (5 new AHC-HRSN screenings: 3 positive + 2 explicit-negative) breaks the pre-S14 "1 positive, 14 ' +
+      'absence-of-screening" distribution that made this rate trivially gameable. The remaining per-dataset caveats ' +
+      'from `_meta.limitations` still apply (small n, dev-interpreted domains).'
+  );
+  lines.push(
+    `- Confusion matrix (n=${metrics.sdoh.total}): TP=${metrics.sdoh.matrix.truePositive}, ` +
+      `TN=${metrics.sdoh.matrix.trueNegative}, FP=${metrics.sdoh.matrix.falsePositive}, FN=${metrics.sdoh.matrix.falseNegative}`
   );
   lines.push('');
   lines.push('### Action Planner (qualitative — synthesis, not classification)');
@@ -394,6 +413,7 @@ function buildJsonSummary(labels: LabelRow[], run: EvalRunResult, metrics: Metri
       agreementRate: metrics.sdoh.agreementRate,
       agreements: metrics.sdoh.agreements,
       total: metrics.sdoh.total,
+      matrix: metrics.sdoh.matrix,
     },
     actionPlanner: {
       notes: metrics.actionPlanner.notes,
