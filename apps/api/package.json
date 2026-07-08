@@ -13,6 +13,7 @@
     "eval": "tsx src/scripts/eval.ts",
     "review:render": "tsx src/scripts/render-clinician-review.ts",
     "review:apply": "tsx src/scripts/apply-clinician-review.ts",
+    "outreach:validate": "tsx src/scripts/outreach-validate.ts",
     "migrate": "tsx src/scripts/migrate.ts",
     "seed": "tsx src/db/seed.ts"
   },
