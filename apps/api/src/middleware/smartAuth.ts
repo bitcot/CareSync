@@ -1,4 +1,4 @@
-import { NextFunction, Request, Response } from 'express';
+import { NextFunction, Request, Response, Router } from 'express';
 import jwt from 'jsonwebtoken';
 import { verifyAccessToken } from '../smart/tokenServer';
 
@@ -102,6 +102,21 @@ export function createSmartAuthMiddleware(options: SmartAuthMiddlewareOptions) {
   const { serverSecret, audience, requiredScopesByMethod, clockToleranceSeconds = 30 } = options;
 
   return function smartAuth(req: Request, _res: Response, next: NextFunction): void {
+    // S14 follow-up — no double-auth: if the inner `requireAuth` (login-tier
+    // JWT validator) has already authenticated this request, pass through.
+    // The POC's two auth schemes (login JWT via `auth/jwt.ts` + SMART access
+    // token via `smart/tokenServer.ts`) are mutually exclusive in shape, so a
+    // request that passed `requireAuth` carries a login JWT — validating it
+    // against the SMART serverSecret would 401 every legitimate API caller
+    // (caught by live smoke test after Commit 4). SMART-shape tokens that
+    // fail `requireAuth` are still rejected upstream; that's a separate
+    // concern (requireAuth needs to learn SMART tokens too) tracked in
+    // verification-s14.md §6 #7.
+    if (req.auth) {
+      next();
+      return;
+    }
+
     const header = req.header('Authorization');
     if (!header || !header.startsWith('Bearer ')) {
       next(new SmartAuthError(401, 'missing_token'));
@@ -177,6 +192,28 @@ export function createSmartAuthMiddleware(options: SmartAuthMiddlewareOptions) {
     };
     next();
   };
+}
+
+/**
+ * Attaches the smartAuth middleware to a router's middleware stack at
+ * runtime, AFTER any middleware the router's factory already added (e.g.
+ * `requireAuth` in `routes/patients.ts`). Returns the same router for
+ * chaining. The caller pattern is:
+ *
+ *   app.use('/api/patients', wrapRouterWithSmartAuth(createPatientsRouter(fhirService), smartAuth));
+ *
+ * This is the post-Commit-4 fix for the regression where the smartAuth
+ * middleware was mounted AHEAD of the route's inner `requireAuth` via
+ * `app.use('/api/...', smartAuth, router)`, which caused login-JWT calls
+ * to be rejected with `invalid_signature` before `requireAuth` ran. The
+ * no-double-auth pass-through inside `smartAuth` (the `req.auth` check
+ * at the top) is what makes the reordering safe — login JWTs flow
+ * through smartAuth untouched, SMART tokens still hit the full
+ * validation path.
+ */
+export function wrapRouterWithSmartAuth(router: Router, smartAuth: ReturnType<typeof createSmartAuthMiddleware>): Router {
+  router.use(smartAuth);
+  return router;
 }
 
 /**

@@ -22,7 +22,7 @@ import { FhirReadService } from './fhir/client';
 import { generateKeyPair } from './smart/keys';
 import { createTokenServer } from './smart/tokenServer';
 import { SmartTokenClient } from './smart/tokenClient';
-import { createSmartAuthMiddleware, smartAuthErrorHandler } from './middleware/smartAuth';
+import { createSmartAuthMiddleware, smartAuthErrorHandler, wrapRouterWithSmartAuth } from './middleware/smartAuth';
 
 const FHIR_BASE_URL = process.env.FHIR_BASE_URL ?? 'http://localhost:8080/fhir';
 const PORT = process.env.PORT ?? 4000;
@@ -92,29 +92,29 @@ if (require.main === module) {
 
   const fhirService = new FhirReadService(db, FHIR_BASE_URL, tokenClient);
   app.use('/api/auth', createAuthRouter(db));
-  app.use('/api/patients', smartAuth, createPatientsRouter(fhirService));
+  app.use('/api/patients', wrapRouterWithSmartAuth(createPatientsRouter(fhirService), smartAuth));
   // S2 — a second router on the same base path; the real runRiskAgent is the
   // default so no extra wiring is needed beyond mounting this route.
   // S4 A2 — `db` threads through so the route can read/write `analysis_cache`;
   // `orchestrate` is passed explicitly (not defaulted) since it now sits
   // before `db` in the parameter list.
-  app.use('/api/patients', smartAuth, createAnalysisRouter(fhirService, orchestrate, db));
+  app.use('/api/patients', wrapRouterWithSmartAuth(createAnalysisRouter(fhirService, orchestrate, db), smartAuth));
   // S5 A2 — Director-only population dashboard aggregates (W02).
-  app.use('/api/population', smartAuth, createPopulationRouter(fhirService, db));
+  app.use('/api/population', wrapRouterWithSmartAuth(createPopulationRouter(fhirService, db), smartAuth));
   // S8 A1-A3 — Director-only governance/audit dashboard aggregates (W06).
-  app.use('/api/governance', smartAuth, createGovernanceRouter(fhirService, db));
+  app.use('/api/governance', wrapRouterWithSmartAuth(createGovernanceRouter(fhirService, db), smartAuth));
   // S6 A1 — Director-scoped Task assignment.
-  app.use('/api/tasks', smartAuth, createTasksRouter(fhirService));
+  app.use('/api/tasks', wrapRouterWithSmartAuth(createTasksRouter(fhirService), smartAuth));
   // S11 A1 — SDOH community resource directory + audited referral (M05).
-  app.use('/api/sdoh', smartAuth, createSdohRouter(fhirService));
+  app.use('/api/sdoh', wrapRouterWithSmartAuth(createSdohRouter(fhirService), smartAuth));
   // S12 C.2 — `POST /api/care-plans/:patientId` for the Care Plan Builder.
-  app.use('/api/care-plans', smartAuth, createCarePlansRouter(fhirService));
+  app.use('/api/care-plans', wrapRouterWithSmartAuth(createCarePlansRouter(fhirService), smartAuth));
   // S12 B.2 — clinical alerts derived from real FHIR risk profiles.
-  app.use('/api/alerts', smartAuth, createAlertsRouter(fhirService, db));
+  app.use('/api/alerts', wrapRouterWithSmartAuth(createAlertsRouter(fhirService, db), smartAuth));
   // S11 A2 — Director-only Quality/HEDIS measure aggregate (W05/W07).
-  app.use('/api/quality', smartAuth, createQualityRouter(fhirService, db));
+  app.use('/api/quality', wrapRouterWithSmartAuth(createQualityRouter(fhirService, db), smartAuth));
   // S11 A3 — Director-only team performance aggregate (W04).
-  app.use('/api/team', smartAuth, createTeamRouter(fhirService, db));
+  app.use('/api/team', wrapRouterWithSmartAuth(createTeamRouter(fhirService, db), smartAuth));
   // S6 A3 — the client relay (`/api/events`) and HAPI's webhook target
   // (`/api/fhir/subscription-hook`) share one in-process hub instance.
   // Not SMART-gated: /api/events is the client SSE relay (gated on

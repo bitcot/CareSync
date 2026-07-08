@@ -147,4 +147,31 @@ describe('createSmartAuthMiddleware', () => {
     expect(res.status).toBe(403);
     expect(res.body).toEqual({ error: 'smart_auth_failed', reason: 'insufficient_scope' });
   });
+
+  it('passes through when req.auth is already set by an upstream middleware (no double-auth)', async () => {
+    // Post-Commit-4 regression guard: the inner `requireAuth` middleware on
+    // HAPI-touching routes (e.g. routes/patients.ts) validates login JWTs and
+    // sets `req.auth`. If smartAuth were to reject login JWTs on top of that,
+    // every legitimate API caller would 401. The fix: smartAuth short-circuits
+    // when `req.auth` is already set, passing through to the route handler
+    // untouched. This test simulates that ordering — fake "login tier" runs
+    // first, sets req.auth; smartAuth should NOT validate the SMART shape.
+    const a = express();
+    a.use((req, _res, next) => {
+      // Pretend a login JWT was validated upstream. The token in the
+      // Authorization header is NOT a SMART token — if smartAuth ran its
+      // full validation it would reject with `invalid_signature`.
+      (req as { auth?: unknown }).auth = { id: 'test', name: 'Test', role: 'director' };
+      next();
+    });
+    a.get('/test', createSmartAuthMiddleware({ serverSecret: DEFAULT_SERVER_SECRET }), (_req, res) =>
+      res.json({ ok: true })
+    );
+    a.use(smartAuthErrorHandler);
+
+    const res = await request(a).get('/test').set('Authorization', 'Bearer this-is-not-a-smart-token');
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ ok: true });
+  });
 });
