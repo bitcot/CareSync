@@ -91,7 +91,10 @@ function observationResource(patientId: string, o: NonNullable<SeedPatient['obse
   };
 }
 
-function sdohObservationResource(patientId: string, sdoh: NonNullable<SeedPatient['sdohPositive']>) {
+function sdohObservationResource(
+  patientId: string,
+  sdoh: NonNullable<SeedPatient['sdohPositive'] | SeedPatient['sdohNegative']>,
+) {
   return {
     resourceType: 'Observation',
     id: sdoh.id,
@@ -187,6 +190,7 @@ function buildBundle(): any {
     for (const c of p.conditions) entries.push(putEntry(conditionResource(p.id, c)));
     for (const o of p.observations ?? []) entries.push(putEntry(observationResource(p.id, o)));
     if (p.sdohPositive) entries.push(putEntry(sdohObservationResource(p.id, p.sdohPositive)));
+    if (p.sdohNegative) entries.push(putEntry(sdohObservationResource(p.id, p.sdohNegative)));
     if (p.encounter) entries.push(putEntry(encounterResource(p.id, p.encounter)));
     entries.push(putEntry(riskAssessmentResource(p)));
     for (const t of p.tasks) entries.push(putEntry(taskResource(p.id, t)));
