@@ -38,6 +38,7 @@ import { readAnalysisCache } from '../db/analysisCache';
 import { computeMetrics, LabelRow, PatientFindings, MetricsReport, CareGapFinding, SdohFinding, ActionPlannerTask } from '../eval/computeMetrics';
 import { computeErrorAnalysis, ErrorAnalysis } from '../eval/errorAnalysis';
 import { labelFromBundle } from '../eval/labelFromBundle';
+import { readAndValidateOutreach } from './outreach-validate';
 
 const FHIR_BASE_URL = process.env.FHIR_BASE_URL ?? 'http://localhost:8080/fhir';
 
@@ -46,6 +47,11 @@ const FHIR_BASE_URL = process.env.FHIR_BASE_URL ?? 'http://localhost:8080/fhir';
 // script). This script lives at the same depth (apps/api/src/scripts), so the
 // same 4-directories-up walk lands on the repo root either way.
 const LABELS_PATH = path.resolve(__dirname, '../../../../data/eval/labels.json');
+// S15 Commit 4 — the outreach log lives at the repo root next to labels.json.
+// Read + validated via `readAndValidateOutreach` (imported from
+// `outreach-validate.ts`) so the I/O + schema check happen in one place and
+// the report's Outreach section just renders the verdict.
+const OUTREACH_PATH = path.resolve(__dirname, '../../../../data/eval/clinician-outreach.json');
 const REPORT_MD_PATH = path.resolve(__dirname, '../../../../docs/eval-report.md');
 // MUST equal governance/service.ts's EVAL_REPORT_PATH exactly — that's the
 // one hard, load-bearing contract this script has with the S8 eval tile.
@@ -345,6 +351,12 @@ export async function runHarness(opts: EvalOptions = {}): Promise<HarnessResult>
 
   const findingsByPatient = new Map(run.findings.map((f) => [f.patientId, f]));
 
+  // S15 Commit 4 — read + validate the outreach log once, share the verdict
+  // between the markdown renderer and the JSON summary. Missing file is a
+  // non-error "not yet started" state (the report makes the engagement gap
+  // visible via the placeholder, not via a crash).
+  const outreach = readAndValidateOutreach();
+
   let devMetrics: MetricsReport | null = null;
   let devErrors: ErrorAnalysis | null = null;
   let heldOutMetrics: MetricsReport | null = null;
@@ -377,6 +389,7 @@ export async function runHarness(opts: EvalOptions = {}): Promise<HarnessResult>
     heldOutMetrics,
     heldOutErrors,
     noLive: !!opts.noLive,
+    outreach,
   };
 
   const markdown = renderMarkdown(renderInputs);
@@ -411,9 +424,10 @@ function renderMarkdown(inputs: {
   heldOutMetrics: MetricsReport | null;
   heldOutErrors: ErrorAnalysis | null;
   noLive: boolean;
+  outreach: ReturnType<typeof readAndValidateOutreach>;
 }): string {
   const lines: string[] = [];
-  const { fullLabels, heldOutRows, runDev, runHeldOut, run, devMetrics, devErrors, heldOutMetrics, heldOutErrors, noLive } = inputs;
+  const { fullLabels, heldOutRows, runDev, runHeldOut, run, devMetrics, devErrors, heldOutMetrics, heldOutErrors, noLive, outreach } = inputs;
 
   // Status counts use the FULL labels file (not the run's filter) — per
   // prd-s15.md D5, the disclosure should reflect the file state so the
@@ -525,11 +539,43 @@ function renderMarkdown(inputs: {
     lines.push('');
   }
 
-  // --- Section 3: Outreach (placeholder for Commit 4) ----------------------
+  // --- Section 3: Outreach (S15 Commit 4) --------------------------------
+  // S15 Commit 4 — render the outreach log from
+  // `data/eval/clinician-outreach.json` (read + validated once at the top
+  // of `runHarness`). Three branches:
+  //   1. file missing → placeholder "Outreach log not yet started."
+  //      (kept verbatim from the Commit 3 placeholder so the gap is visible
+  //      on a fresh repo before anyone creates the JSON file);
+  //   2. file present, schema ok → markdown table (one row per invitation);
+  //   3. file present, schema error → error list inline (the report is the
+  //      place to surface this; we don't crash the run).
+  // Engagement is NOT a verification gate — an empty `invitations: []`
+  // is a valid state, not a regression.
   lines.push('## Outreach');
   lines.push('');
-  lines.push('Outreach log not yet started.');
-  lines.push('');
+  if (!outreach.fileExists) {
+    lines.push('Outreach log not yet started.');
+    lines.push('');
+  } else if (outreach.ok) {
+    if (outreach.invitations.length === 0) {
+      lines.push('No clinician review invitations recorded yet. (Empty `invitations` array in `data/eval/clinician-outreach.json` — engagement is tracked here but does not gate the eval.)');
+      lines.push('');
+    } else {
+      lines.push('| Reviewer | Sent At | Channel | Status | Labels Affected |');
+      lines.push('| --- | --- | --- | --- | --- |');
+      for (const inv of outreach.invitations) {
+        lines.push(`| ${inv.reviewer} | ${inv.sentAt} | ${inv.channel} | ${inv.status} | ${inv.labelsAffected} |`);
+      }
+      lines.push('');
+    }
+  } else {
+    lines.push('`data/eval/clinician-outreach.json` failed schema validation:');
+    lines.push('');
+    for (const err of outreach.errors) {
+      lines.push(`- ${err}`);
+    }
+    lines.push('');
+  }
 
   // --- Section 4: Error analysis — Dev-labeled -----------------------------
   lines.push(`## Error analysis — Dev-labeled (${devCohortCount} ${devCohortCount === 1 ? 'patient' : 'patients'})`);
@@ -731,8 +777,9 @@ function buildJsonSummary(inputs: {
   devErrors: ErrorAnalysis | null;
   heldOutMetrics: MetricsReport | null;
   heldOutErrors: ErrorAnalysis | null;
+  outreach: ReturnType<typeof readAndValidateOutreach>;
 }): object {
-  const { fullLabels, heldOutRows, runDev, runHeldOut, run, devMetrics, devErrors, heldOutMetrics, heldOutErrors } = inputs;
+  const { fullLabels, heldOutRows, runDev, runHeldOut, run, devMetrics, devErrors, heldOutMetrics, heldOutErrors, outreach } = inputs;
 
   const clinicianCount = fullLabels.filter((l) => l.source === 'clinician').length;
   const totalPatients = fullLabels.length;
@@ -823,7 +870,17 @@ function buildJsonSummary(inputs: {
           errorAnalysis: heldOutErrors,
         }
       : { skipped: '--dev-only' },
-    outreach: {}, // Commit 4 fills this from `data/eval/clinician-outreach.json`.
+    outreach: {
+      // S15 Commit 4 — surfaces the file's existence + schema verdict to
+      // the JSON-summary consumer (governance/service.ts's eval tile +
+      // any downstream tooling). The `invitations` array is the parsed
+      // per-invitation shape (reviewer / sentAt / channel / status /
+      // labelsAffected) so consumers don't have to re-parse the file.
+      fileExists: outreach.fileExists,
+      ok: outreach.ok,
+      errors: outreach.errors,
+      invitations: outreach.invitations,
+    },
   };
 }
 
