@@ -1,116 +1,110 @@
-# Active slice: S11 — Demo-supporting + shell screens
+# Active slice: S14 — Close 4 Secondary Gaps
 
-## Approved: yes
+## Approved: no (awaiting user approval)
 
-Source: `implementation-plan.md` → "Iteration 11 — S11 Demo-supporting + shell screens — 2026-07-04".
-Spec: `prd.md` (stories 8, 9, 26, 30; GD9 tiers). Decisions: GD9 (three screen tiers), GD10
-(design-system fidelity), honest staging (no placeholder-as-real). Blocked by S5 + S7 — both
-merged to `main` (PR #8, #9) — unblocked.
+Source: `implementation-plan-s14.md` · Spec: `prd-s14.md` (D1–D10) · Decisions: `grill-secondary-gaps.md` (9-question grill, S14/S15 split). Prior slice S11 archived in git history + `verification-s11.md`.
 
-**Goal:** Breadth once the design system is established. Build the demo-supporting tier to
-designed/partial depth — SDOH resource directory + referral (M05), Quality/HEDIS (W05/W07),
-Team performance (W04), Patient quick profile (M04), Today/Schedule (M08), Care Plan builder
-(W14) — and navigation-only shells for the remaining screens (W08–W11, W13, W15, W16, M06,
-M07, M09, M10) with honest placeholder content. Scope flexes to remaining capacity; the six
-demo-critical screens keep priority.
+**Goal:** Close 4 of the 5 secondary gaps from the HL7 evaluation in a single PR (4 atomic commits): #2 SDOH imbalance, #3 clinician validation apply half, #4 confidence emission, #5 SMART enforcement. Gap #1 (Risk PPV / LLM variance) is out of scope — see S15.
 
-**Architecture:** Mostly frontend against the established design system + existing aggregate
-APIs, with two small real backends: SDOH referral creates a FHIR `ServiceRequest` (audited
-write, S3 client); Quality/HEDIS derives measure progress + incentive dollars from FHIR data
-(small `quality/` aggregate). Shells are routed `ComingSoon`-style pages with consistent
-styling and explicitly-staged placeholder content (never presented as functional). Reference
-mockups: `caresync-sdoh-mobile.html`, `caresync-quality-roi.html`.
+**Architecture:** 3 new modules (`apply-clinician-review.ts`, `confidenceScorer.ts`, `smartAuth.ts`) + 8 modified files (seed-patients.ts, labels.json, agent.ts schema, citationValidator.ts call site, eval.ts disclosure, docker-compose.yml, server.ts middleware mount, package.json). TDD where applicable (#3, #4, #5); data-driven for #2 (no new logic, just new FHIR Observations).
 
-**Ponytail pass applied:** demo-supporting screens to partial depth only (GD9) — not full
-features; shells reuse the existing `ComingSoon` component, not bespoke pages; referral is one
-`ServiceRequest` write reusing the S3 client; HEDIS is a derived aggregate, not a measure
-engine; capacity-flexed — demo-critical screens always win; honest staging enforced (no
-fake-functional content).
+**Ponytail pass applied:** minimum new seams (3); per-finding schema additions are additive; HAPI config is additive env vars + 1 bind-mount; no speculative work on gap #1; confidence scorer is pure (no I/O); no separate labels.clinician.json (would create two-tier complexity); no in-app clinician review queue.
 
-## Phase A — Demo-supporting screens (partial depth)
+**Branch state (per skill warning):** implementation must move to a fresh feature branch (e.g. `feature/s14-secondary-gaps`) before any code lands. Do NOT implement from `main`.
 
-- [x] A1. SDOH resource directory + referral (M05, `caresync-sdoh-mobile.html`). List
-  community resources by category (transportation/food/housing/mental health); a referral
-  creates a FHIR `ServiceRequest` (audited).
-  - Domain rule: referral creates a FHIR ServiceRequest (S11 acceptance, story 30); write audited.
-  - Test (Supertest): referral POSTs a resolvable ServiceRequest; (Vitest) directory renders by category.
-  - Commit `f699bd9`, reviewed APPROVED_WITH_NITS (non-blocking).
-- [x] A2. Quality/HEDIS view (W05/W07, `caresync-quality-roi.html`). Measure progress +
-  incentive dollars at stake, derived from FHIR data; native Canvas charts (GD10). Story 9.
-  - Test: aggregate computes measure progress over seeded data; view renders it.
-  - Real HEDIS measure computed live from FHIR (diabetes Condition E11.9 vs. HbA1c Observation
-    LOINC 4548-4 — 286 vs. 1 in the seeded environment); incentive-dollar figure is explicitly
-    labeled illustrative, not a real financial record. Mockup's fabricated ROI donut/cost-events
-    table/ROI calculator/trend chart dropped entirely (no real backing data) — documented in
-    `Quality.tsx`'s deviation-note doc comment, same discipline as `Governance.tsx`.
-  - Commit `4eb6f9f` + review fix `6748d80` (gated Director-only to match Population/Governance's
-    actual precedent, corrected a misleading doc comment). Re-reviewed APPROVED.
-- [x] A3. Team performance (W04). Coordinator workload + completion rates from
-  Task/assignment data. Story 8.
-  - Computed live from real Task ownership/status (Director-only, matching Population/
-    Governance/Quality). Fresh-environment state is honestly 0 assigned/0 completed/7
-    unassigned (no frontend UI calls the existing assign endpoint yet) — this is correct,
-    not a bug; the aggregate updates the moment a live assignment/completion happens.
-  - Commit `3c819ed`, reviewed APPROVED (no issues).
-- [x] A4. Remaining supporting screens as capacity allows. Patient quick profile (M04),
-  Today/Schedule (M08), Care Plan builder (W14 — FHIR CarePlan, story 26) to partial depth.
-  - ponytail: build in priority order; stop at capacity, record what's partial (honest staging).
-  - **Capacity-flex decision (2026-07-07): deferred, not built this pass.** None of M04/M08/
-    W14 has a reference mockup (unlike A1/A2), and each meaningfully overlaps existing,
-    already-shipped screens without a clear differentiated spec: M04 "Patient quick profile"
-    would duplicate `GET /api/patients/:id` + `PatientDetail.tsx` (S1/S7) without a mockup to
-    define what's distinctly "quick" about it; M08 "Today/Schedule" would duplicate
-    `listTasks`/`TaskQueue.tsx` (S7 B1, already priority+due-sorted) without a mockup to
-    define a distinct schedule/calendar treatment; W14 "Care Plan builder" is a new FHIR
-    `CarePlan` write surface — real new backend scope, not a partial-depth read view like the
-    other two. Per this task's own ponytail note ("stop at capacity, record what's partial")
-    and the iteration's scope-flex clause, A1 (SDOH)/A2 (Quality)/A3 (Team) — the three items
-    with real mockups or unambiguous specs and no existing-screen overlap — were built to
-    completion instead; M04/M08/W14 are left for a future slice once mockups or a sharper
-    spec exist. No shell/placeholder was built for these three either (that would misrepresent
-    them as "coming soon" nav entries when they're not in the B1 shell list).
+---
 
-## Phase B — Shell screens
+## Commit 1 — feat(S14): rebalance SDOH labels
 
-- [x] B1. Navigation-only shells. W08, W09, W10, W11, W13, W15, W16, M06, M07, M09, M10 as
-  styled placeholder pages in navigation.
-  - ponytail: one `ComingSoon` component driven by a route→title table (the S1 `ComingSoon`
-    page already exists) — 11 rows of data, not 11 files.
-  - Domain rule: no shell presents placeholder data as real/functional (S11 acceptance — honest staging, gate G4).
-  - Test (Vitest): each shell route renders with consistent styling + an explicit "coming soon / not yet functional" treatment.
-  - None of these 11 IDs has a defined name/purpose anywhere in this repo's docs, so the 10
-    genuinely-undefined ones are labeled neutrally ("Screen W08", etc.) rather than inventing
-    plausible-sounding feature names. W13 already had a real, shipped identity ("Task
-    Management Center", S7 B3) — folded its bespoke `TaskCenter.tsx` into the shared
-    table/component (same route, same nav link) rather than leaving a near-duplicate file.
-    Reachable via one new "More" nav link (all roles) → `/more` index, since none of the 11
-    has a defined role-owner.
-  - Commit `7b05a3d`, reviewed APPROVED (no issues).
+- [ ] A1. Extend `SeedPatient` with `sdohNegative?: { id, note }` in `apps/api/src/fhir-data/seed-patients.ts`. `npx tsc --noEmit` clean.
+- [ ] A2. Update `import-fhir.ts:189` to push both `sdohPositive` and `sdohNegative` AHC-HRSN Observations (LOINC 71802-3). `npx tsc --noEmit` clean.
+- [ ] B1. Add `sdohPositive: { id: 'james-okafor-sdoh', note: 'AHC-HRSN screening positive: transportation barriers, medication-cost barriers' }` to `james-okafor`.
+- [ ] B2. Add `sdohPositive: { id: 'angela-diaz-sdoh', note: 'AHC-HRSN screening positive: mental-health-access barriers, social isolation' }` to `angela-diaz`.
+- [ ] B3. Add `sdohPositive` to `pop-0010` (index 9) in `population.ts`.
+- [ ] B4. Add `sdohNegative: { id: 'robert-kim-sdoh', note: 'AHC-HRSN screening: no social barriers identified' }` to `robert-kim`.
+- [ ] B5. Add `sdohNegative` to `pop-0005` (index 4) in `population.ts`.
+- [ ] C1. Update `labels.json._meta.labelingRules.sdoh` to reference both `sdohPositive` and `sdohNegative`.
+- [ ] C2. Update `james-okafor.sdoh` row: `expectedHasBarrier: true`, `expectedDomains: ['transportation', 'financial']`, rich notes. `source: "dev"` stays.
+- [ ] C3. Update `angela-diaz.sdoh` row: `expectedHasBarrier: true`, `expectedDomains: ['mental-health', 'social-isolation']`, rich notes.
+- [ ] C4. Update `pop-0010.sdoh` row: `expectedHasBarrier: true`, `expectedDomains: ['social-isolation', 'financial']`, rich notes.
+- [ ] C5. Update `robert-kim.sdoh` row: `expectedHasBarrier: false`, rich notes (explicit-negative).
+- [ ] C6. Update `pop-0005.sdoh` row: `expectedHasBarrier: false`, rich notes (explicit-negative).
+- [ ] D1. `npm run import` (idempotent PUT). Verify HAPI has 5 new Observations.
+- [ ] D2. Spot-check via curl: each new Observation returns the expected `valueString`.
+- [ ] D3. Commit: `feat(S14): rebalance SDOH labels (3 positive + 2 explicit-negative)`.
 
-## Phase C — Verification
+**Verify:** `npm run eval` shows SDOH rate off 100%; TP/FP/TN/FN appear for the first time.
 
-- [x] C1. `npm run test:api` (referral + HEDIS aggregate) + `npm run test:web` (screens/shells).
-  - API: 37 suites / 232 tests pass (against live seeded HAPI). Web: 27 files / 225 tests pass.
-- [x] C2. Frontend E2E (`frontend-e2e-verification`) for the demo-supporting screens that
-  carry real behavior (SDOH referral, Quality view render). Shells covered by render tests.
-  - `apps/web/e2e/sdoh-referral.spec.ts` + `director-quality.spec.ts`, both driving the real
-    API + live HAPI (no mocks). Full `apps/web/e2e` suite: 16/16 pass with `--workers=1` (the
-    default concurrent run shows 2 pre-existing, unrelated failures from HAPI contention under
-    load, confirmed by re-running serially — not a regression). Commit `7f57b5d`.
-  - Evidence strength (per CLAUDE.md's evidence boundaries): local mock / packaged-UI —
-    headless Playwright against the local dev stack, not target-environment or
-    client-accepted evidence.
+---
+
+## Commit 2 — feat(S14): review:apply
+
+- [ ] A1. RED: Create `apply-clinician-review.test.ts` with one round-trip test covering override + endorse + abstain in one fixture. `npx jest` → fails.
+- [ ] A2. GREEN: Create `apply-clinician-review.ts` with `applyReview(reviewPath, labelsPath)` (reads, validates, mutates, writes). Round-trip test passes.
+- [ ] A3. Add second test: bad patient ID → throws + labels.json untouched. Passes.
+- [ ] B1. Add `main()` (cwd review, committed path labels, CHANGELOG summary, `require.main === module` guard) + add `"review:apply": "tsx src/scripts/apply-clinician-review.ts"` to `apps/api/package.json`.
+- [ ] B2. Commit: `feat(S14): review:apply (the missing apply half)`.
+
+**Verify:** `npx jest src/scripts/` all green; `npm run review:render` → fill form → download JSON → `npm run review:apply` → labels.json mutated as expected.
+
+---
+
+## Commit 3 — feat(S14): per-finding confidence
+
+- [ ] A1. RED: Create `confidenceScorer.test.ts` with 5 cases (3 scorer functions + Action Planner derivation + 1 more). `npx jest` → fails.
+- [ ] A2. GREEN: Create `confidenceScorer.ts` with `scoreRiskFlag`, `scoreCareGap`, `scoreSdohBarrier`, `deriveActionPlannerTaskConfidence`. All 5 tests pass.
+- [ ] B1. Update `agent.ts` to add `confidence: number` to each finding shape (RiskOutput.flags, CareGapOutput.gaps, SdohOutput.barriers, ActionPlannerOutput.tasks) + update `mock-outputs.ts` to fill `confidence: 0.5` placeholder. `tsc --noEmit` clean.
+- [ ] B2. Wire scorer into `citationValidator.ts`: call scorer after `validateCitations`, write score into the validated finding's `confidence` field.
+- [ ] B3. `npx jest src/agents/` all green; no regressions.
+- [ ] B4. Commit: `feat(S14): per-finding confidence via bundle-evidence heuristic`.
+
+**Verify:** `npm run eval` shows per-agent confidence-bucketed accuracy sub-tables with non-zero buckets.
+
+---
+
+## Commit 4 — feat(S14): SMART enforcement A+B
+
+- [ ] A1. Extract public key from `apps/api/src/smart/keys.ts` to `apps/api/src/smart/keys/smart-public.pem`. Update `docker-compose.yml` `hapi-fhir`: add `hapi.fhir.security.oauth.enable_jwt_validation: "true"` + `hapi.fhir.security.oauth.public_key_location: file:/keys/smart-public.pem` + bind-mount `./apps/api/src/smart/keys:/keys:ro`. `docker compose config` clean.
+- [ ] B1. RED: Create `smartAuth.test.ts` with 5 cases (valid → next; no token → 401; tampered → 401; expired → 401; wrong scope → 403). `npx jest` → fails.
+- [ ] B2. GREEN: Create `smartAuth.ts` with `createSmartAuthMiddleware({ publicKey, audience, requiredScopesByMethod })` + `smartAuthErrorHandler`. All 5 tests pass.
+- [ ] C1. Mount middleware on HAPI-touching routes in `server.ts` (NOT on `/api/auth/*` or `/api/health`). Existing route tests still pass with valid Bearer tokens in fixtures.
+- [ ] D1. `docker compose up -d hapi-fhir`. `curl -i http://localhost:8080/fhir/Patient/maria-chen` → 401 Unauthorized. With valid token: 200 OK with Patient body.
+- [ ] D2. Commit: `feat(S14): SMART enforcement A+B (app middleware + HAPI config)`.
+
+**Verify:** 401/200 curl evidence captured in `verification-s14.md`.
+
+---
+
+## Phase E — Post-merge verification
+
+- [ ] E1. `npm run eval` regenerated report shows: SDOH rate off 100% (target 70-90%); SDOH TP/FP/TN/FN visible; per-agent confidence-bucketed tables non-zero; "Status" disclosure reads "X of 16 clinician-validated (Y%), M of 16 dev-labeled (N%)."
+- [ ] E2. Write `verification-s14.md` per `verification-s13.md` template (outcome, evidence, TDD, live re-eval, definition-of-done, open follow-ups).
+- [ ] E3. Write `review-s14.md` per `review-s13.md` two-axis pattern.
+
+---
 
 ## Rollback / safety
 
-ServiceRequest writes audited + HAPI-reversible. Shells are inert. Honest-staging is the
-safety property here: partial/placeholder content is explicitly labeled so the demo never
-overclaims (G4).
+| Commit | Revert | Reverts |
+|---|---|---|
+| 1 (SDOH) | `git revert <sha>` | Drops 5 new AHC-HRSN Observations (re-import); labels.json returns to 1/16-positive. |
+| 2 (review:apply) | `git revert <sha>` | Removes script + tests + npm script. `review:render` still works. |
+| 3 (confidence) | `git revert <sha>` | Removes scorer + schema + integration. Eval governance buckets return to zero. |
+| 4 (SMART A+B) | `git revert <sha>` | Removes middleware + HAPI config. Pre-S14 gap returns. |
 
-## Definition of done (S11) — maps to `issues.md`
+**Whole-PR revert:** `git revert <merge-sha>...<tip-sha>` reproduces pre-S14 state.
 
-- SDOH directory lists resources by category; referral creates a ServiceRequest (A1).
-- Quality/HEDIS shows measure progress + incentive dollars from FHIR data (A2).
-- Team performance shows workload + completion rates (A3).
-- Shell screens exist in nav with consistent styling + placeholder content (B1).
-- No shell presents placeholder data as real (B1 — honest staging).
+---
+
+## Definition of done
+
+D1–D9 from `implementation-plan-s14.md` §"Definition of done (S14)". Headline: PR merged, eval report shows the 4 improvements, verification-s14.md + review-s14.md ship.
+
+---
+
+## Open follow-ups (deferred — NOT in this slice)
+
+1. **Risk agent v2 rubric + LLM-variance root cause** — owned by S15. Per `verification-s13.md §6`.
+2. **Production SMART handoff** — point HAPI at a real SMART auth server. Noted in `verification-s14.md`.
+3. **Model-version pin for the LLM API** — owned by S15 (cross-cutting).
+4. **In-app clinician review queue** — deferred indefinitely.

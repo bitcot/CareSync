@@ -111,6 +111,8 @@ export interface AgreementMetrics {
   agreementRate: number | null;
   agreements: number;
   total: number;
+  /** S14 — TP/FP/TN/FN for SDOH (previously agreement-rate-only). */
+  matrix: ConfusionMatrix;
 }
 
 export interface ActionPlannerNote {
@@ -178,6 +180,7 @@ export function computeMetrics(labels: LabelRow[], findings: PatientFindings[]):
 
   const careGapPairs: { expected: boolean; predicted: boolean }[] = [];
   const riskPairs: { expected: boolean; predicted: boolean }[] = [];
+  const sdohPairs: { expected: boolean; predicted: boolean }[] = [];
   let sdohAgreements = 0;
   let sdohTotal = 0;
   const actionPlannerNotes: ActionPlannerNote[] = [];
@@ -203,6 +206,7 @@ export function computeMetrics(labels: LabelRow[], findings: PatientFindings[]):
       const predicted = patientFindings.sdoh.findings.length > 0;
       sdohTotal++;
       if (predicted === label.sdoh.expectedHasBarrier) sdohAgreements++;
+      sdohPairs.push({ expected: label.sdoh.expectedHasBarrier, predicted });
     }
 
     if (patientFindings?.actionPlanner) {
@@ -216,11 +220,19 @@ export function computeMetrics(labels: LabelRow[], findings: PatientFindings[]):
 
   const careGapMatrix = tallyConfusionMatrix(careGapPairs);
   const riskMatrix = tallyConfusionMatrix(riskPairs);
+  const sdohMatrix = tallyConfusionMatrix(sdohPairs);
 
   return {
     careGap: { ...classificationMetricsFromMatrix(careGapMatrix), matrix: careGapMatrix, labeledCount: careGapPairs.length },
     risk: { ...classificationMetricsFromMatrix(riskMatrix), matrix: riskMatrix, labeledCount: riskPairs.length },
-    sdoh: { agreementRate: sdohTotal > 0 ? sdohAgreements / sdohTotal : null, agreements: sdohAgreements, total: sdohTotal },
+    sdoh: {
+      agreementRate: sdohTotal > 0 ? sdohAgreements / sdohTotal : null,
+      agreements: sdohAgreements,
+      total: sdohTotal,
+      // S14 — first time TP/FP/TN/FN are surfaced for SDOH (was an
+      // agreement-rate-only gauge before the 5-row label rebalance).
+      matrix: sdohMatrix,
+    },
     actionPlanner: { notes: actionPlannerNotes },
   };
 }

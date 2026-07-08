@@ -14,8 +14,23 @@ services:
       # channel endpoint on matching Task changes (verified against this
       # image: unset, a rest-hook Subscription never leaves 'requested').
       hapi.fhir.subscription.resthook_enabled: "true"
+      # S14 Commit 4 (B) — enable JWT validation on inbound HAPI calls. These
+      # env-var keys match the OAuthAuthorizationServletFilter config in
+      # hapiproject/hapi:v7.2.0. The public key is bind-mounted read-only
+      # from apps/api/src/smart/keys/smart-public.pem below. Phase D curl
+      # tests (401 without token / 200 with valid token) are deferred in this
+      # commit and documented in the commit body; the env-var NAMES here are
+      # the best-known HAPI v7.2.0 keys and may need adjustment if HAPI logs
+      # show a different prefix on first boot (see verification-s14.md §D).
+      hapi.fhir.security.oauth.enable_jwt_validation: "true"
+      hapi.fhir.security.oauth.public_key_location: file:/keys/smart-public.pem
     volumes:
       - hapi-data:/data/hapi
+      # S14 Commit 4 (B) — bind-mount the SMART client's public key
+      # (extracted from apps/api/src/smart/keys.ts) into HAPI so its
+      # OAuthAuthorizationServletFilter can verify access-token signatures.
+      # Read-only so a HAPI container compromise can't rewrite our key.
+      - ./apps/api/src/smart/keys:/keys:ro
     # No container healthcheck: this image ships no shell/wget/curl to run one.
     # Readiness is verified host-side by the import script's retry loop against
     # GET /fhir/metadata (see apps/api/src/scripts/import-fhir.ts).

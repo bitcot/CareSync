@@ -133,6 +133,31 @@ function riskScoreFor(conditionCount: number, recencyHours: number): number {
   return Math.round(probabilityDecimal * 100);
 }
 
+/**
+ * S14 B3/B5 — return the AHC-HRSN screening Observation (if any) for the
+ * procedural patient at the given 0-based index. Only `pop-0005` (explicit
+ * negative, i=4) and `pop-0010` (positive, i=9) carry one in this slice;
+ * the rest of the population stays at "no screening on file" so the SDOH
+ * agreement rate is no longer trivially gameable by a constant "no barrier"
+ * predictor. Mirrors SeedPatient's sdohPositive/sdohNegative shape so
+ * `import-fhir.ts`'s existing importer pushes them unchanged.
+ */
+function buildSdohForIndex(
+  i: number,
+): { sdohPositive?: SeedPatient['sdohPositive']; sdohNegative?: SeedPatient['sdohNegative'] } | undefined {
+  if (i === 9) {
+    // pop-0010 — procedural depression + no Observations → social-isolation
+    // + financial barriers (dev interpretation of procedural profile).
+    return { sdohPositive: { id: 'pop-0010-sdoh', note: 'AHC-HRSN screening positive: social-isolation barriers, financial barriers' } };
+  }
+  if (i === 4) {
+    // pop-0005 — HTN + depression but stable housing + insurance per the
+    // procedural generator — same as robert-kim (screened, no barriers).
+    return { sdohNegative: { id: 'pop-0005-sdoh', note: 'AHC-HRSN screening: no social barriers identified' } };
+  }
+  return undefined;
+}
+
 export function generatePopulation(): SeedPatient[] {
   const rng = mulberry32(POPULATION_SEED);
   const patients: SeedPatient[] = [];
@@ -153,6 +178,7 @@ export function generatePopulation(): SeedPatient[] {
     });
 
     const riskScore = riskScoreFor(mix.length, recencyHours);
+    const sdoh = buildSdohForIndex(i);
 
     patients.push({
       id,
@@ -161,6 +187,7 @@ export function generatePopulation(): SeedPatient[] {
       birthDate,
       raceEthnicity,
       conditions,
+      ...(sdoh ?? {}),
       encounter: { id: `${id}-encounter`, conditionId: conditions[0].id, dischargedHoursAgo: recencyHours },
       riskScore,
       tasks: [],

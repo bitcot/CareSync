@@ -5,7 +5,7 @@
     "labelingRules": {
       "careGap": "expectedHasGap is derived ONLY from Observation-type coverage for the two (three, counting CKD) conditions that already have an established LOINC convention elsewhere in this codebase: diabetes (E11.9) needs an HbA1c Observation (LOINC 4548-4, as seeded for maria-chen); CHF (I50.9) needs a BNP Observation (LOINC 30934-4, as seeded for maria-chen); CKD (N18.3) needs an eGFR Observation (LOINC 62238-1, also seeded for maria-chen, general renal marker). A patient with one of these conditions and NO matching Observation on file is labeled true (a real, defensible monitoring gap: the record shows the test was never done). A patient with the condition AND a matching Observation on file is labeled false. Conditions with no established Observation/LOINC convention anywhere in this codebase (depression F33.1, COPD J44.9, HTN I10, acute hip fracture S72.001A) are left UNLABELED (expectedHasGap: null) rather than guessing — see `clinicianStatus`/GD8 for the override path.",
       "risk": "expectedHighRisk is true iff the patient's own seed/generator riskScore (SeedPatient.riskScore for curated patients; the deterministic riskScoreFor() output for procedural patients — both documented, pre-existing values, not invented for this label file) is >= 75, the same CRITICAL_RISK_THRESHOLD population.ts already uses for its 'critical zone'. Ground truth is compared against whether the Risk agent's `riskLevel` output is 'high' or 'critical'.",
-      "sdoh": "expectedHasBarrier is true only for patients with a seeded AHC-HRSN screening (`sdohPositive` in seed-patients.ts) — the only SDOH-relevant evidence this dataset provides anywhere. Only maria-chen has one. Every other patient (panel and procedural) is labeled false: the SDOH agent's own prompt scopes it to the AHC-HRSN screening + demographics + observations, and none of those other patients have any AHC-HRSN screening or SDOH-relevant observation for it to find.",
+      "sdoh": "expectedHasBarrier is true if the patient has a seeded AHC-HRSN screening with positive findings (`sdohPositive` in seed-patients.ts), false if the patient has a seeded AHC-HRSN screening with negative findings (`sdohNegative`), and unlabeled (omitted from this row's `expectedHasBarrier`) if no screening exists. Only patients with one of these screening Observations are labeled for SDOH.",
       "actionPlanner": "No per-patient ground truth (Action Planner is qualitative synthesis, not classification, per the plan). `computeMetrics` passes through each patient's created-task data unscored for Phase B's report to narrate."
     },
     "limitations": [
@@ -50,8 +50,9 @@
         "notes": "Seed riskScore 62 < 75."
       },
       "sdoh": {
-        "expectedHasBarrier": false,
-        "notes": "No seeded AHC-HRSN screening or any other SDOH-relevant evidence for this patient."
+        "expectedHasBarrier": true,
+        "expectedDomains": ["transportation", "financial"],
+        "notes": "Seed AHC-HRSN screening Observation/james-okafor-sdoh added 2026-07-08 — positive for transportation and financial barriers (dev interpretation; profile: COPD + recent inpatient supports post-discharge access barriers)."
       },
       "actionPlanner": {
         "notes": "Qualitative only — see Phase B report."
@@ -93,7 +94,7 @@
       },
       "sdoh": {
         "expectedHasBarrier": false,
-        "notes": "No seeded AHC-HRSN screening or any other SDOH-relevant evidence for this patient."
+        "notes": "Seed AHC-HRSN screening Observation/robert-kim-sdoh added 2026-07-08 — explicit negative (screened, no barriers). profile: acute hip fracture + otherwise stable demographic supports plausibility."
       },
       "actionPlanner": {
         "notes": "Qualitative only — see Phase B report."
@@ -113,8 +114,9 @@
         "notes": "Seed riskScore 58 < 75."
       },
       "sdoh": {
-        "expectedHasBarrier": false,
-        "notes": "No seeded AHC-HRSN screening or any other SDOH-relevant evidence for this patient."
+        "expectedHasBarrier": true,
+        "expectedDomains": ["mental-health", "social-isolation"],
+        "notes": "Seed AHC-HRSN screening Observation/angela-diaz-sdoh added 2026-07-08 — positive for mental-health-access and social-isolation barriers (dev interpretation; profile: HTN + depression with zero Observations signals access gaps)."
       },
       "actionPlanner": {
         "notes": "Qualitative only — see Phase B report."
@@ -240,7 +242,7 @@
       },
       "sdoh": {
         "expectedHasBarrier": false,
-        "notes": "Procedural patients never receive a seeded AHC-HRSN screening or any other SDOH-relevant evidence."
+        "notes": "Seed AHC-HRSN screening Observation/pop-0005-sdoh added 2026-07-08 — explicit negative (screened, no barriers). profile: HTN + depression with stable housing/insurance per procedural generator."
       },
       "actionPlanner": {
         "notes": "Qualitative only — see Phase B report."
@@ -344,8 +346,9 @@
         "notes": "Generator riskScore 28 < 75 (inspected directly via generatePopulation()[9])."
       },
       "sdoh": {
-        "expectedHasBarrier": false,
-        "notes": "Procedural patients never receive a seeded AHC-HRSN screening or any other SDOH-relevant evidence."
+        "expectedHasBarrier": true,
+        "expectedDomains": ["social-isolation", "financial"],
+        "notes": "Seed AHC-HRSN screening Observation/pop-0010-sdoh added 2026-07-08 — positive for social-isolation and financial barriers (dev interpretation of procedural profile: depression with no Observations and demographics consistent with limited resources)."
       },
       "actionPlanner": {
         "notes": "Qualitative only — see Phase B report."
