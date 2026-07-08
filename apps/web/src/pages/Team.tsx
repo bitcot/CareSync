@@ -37,14 +37,16 @@ function CoordinatorRow({ coordinator }: { coordinator: CoordinatorWorkload }) {
 }
 
 export function Team() {
+  // Real implementation is primary. `MOCK_TEAM` is a SAFETY NET only —
+  // kicks in when the query has errored AND we have no real data. The
+  // `DemoFallbackBadge` makes the fallback visible.
   const performanceQuery = useQuery({
     queryKey: ['team-performance'],
     queryFn: getTeamPerformance,
-    placeholderData: MOCK_TEAM,
     retry: 1,
   });
-  const performance = performanceQuery.data ?? MOCK_TEAM;
   const isUsingFallback = performanceQuery.isError;
+  const performance = performanceQuery.isError ? MOCK_TEAM : performanceQuery.data;
   const overallPercent = performance ? (Math.round(performance.overallCompletionRate * 1000) / 10).toFixed(1) : undefined;
 
   const noCoordinators = performance !== undefined && performance.coordinators.length === 0;
@@ -55,7 +57,7 @@ export function Team() {
     performance.totalTasks > 0;
 
   return (
-    <div>
+    <div className="px-6 py-6">
       <div className="flex items-center gap-3 mb-4">
         <h1 className="text-section text-text font-bold">Team Performance</h1>
         {isUsingFallback && <DemoFallbackBadge />}

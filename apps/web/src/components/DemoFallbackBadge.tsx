@@ -12,15 +12,16 @@ interface DemoFallbackBadgeProps {
  * the judge/user knows they're looking at safety-net data, not live HAPI
  * output.
  *
- * Pattern at the page level:
+ * Pattern at the page level — real implementation is primary; mock is a
+ * SAFETY NET that fires only when the API has errored:
  *   const summaryQuery = useQuery({
  *     queryKey: ['population-summary'],
  *     queryFn: getPopulationSummary,
- *     placeholderData: MOCK_POPULATION_SUMMARY,
  *     retry: 1,
  *   });
- *   const summary = summaryQuery.data ?? MOCK_POPULATION_SUMMARY;
- *   {summaryQuery.isError && <DemoFallbackBadge />}
+ *   const isUsingFallback = summaryQuery.isError;
+ *   const summary = summaryQuery.isError ? MOCK_POPULATION_SUMMARY : summaryQuery.data;
+ *   {isUsingFallback && <DemoFallbackBadge />}
  */
 export function DemoFallbackBadge({ reason = 'server unreachable' }: DemoFallbackBadgeProps) {
   return (

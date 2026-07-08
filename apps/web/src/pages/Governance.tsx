@@ -112,29 +112,26 @@ function EvalSummaryContent({ summary }: { summary: unknown }) {
 export function Governance() {
   const [offset, setOffset] = useState(0);
 
+  // Real implementation is primary. `MOCK_*` are SAFETY NETS only — they
+  // fire when a query has errored AND we have no real data. The
+  // `DemoFallbackBadge` makes the fallback visible. The audit query uses
+  // `keepPreviousData` for pagination UX (the previous page should stay
+  // mounted while the next offset's page is in flight), which is unrelated
+  // to the demo fallback.
   const auditQuery = useQuery({
     queryKey: ['governance-audit', offset],
     queryFn: () => getAuditTrail(AUDIT_PAGE_LIMIT, offset),
-    // Keeps the previously-loaded page (and the Prev/Next controls) mounted
-    // while a new offset's page is in flight, instead of falling back to the
-    // page-level loading state on every click — pagination should feel like
-    // paging, not a full reload.
     placeholderData: keepPreviousData,
     retry: 1,
   });
-  // S12 B.2 — `placeholderData` keeps the page rendering immediately AND when
-  // the API errors. The audit query uses `keepPreviousData` for pagination,
-  // so only the model + parity queries get the MOCK_* placeholderData here.
   const modelQuery = useQuery({
     queryKey: ['governance-model'],
     queryFn: getModelPerformance,
-    placeholderData: MOCK_MODEL_PERFORMANCE,
     retry: 1,
   });
   const parityQuery = useQuery({
     queryKey: ['governance-parity'],
     queryFn: getParityMetrics,
-    placeholderData: MOCK_PARITY,
     retry: 1,
   });
   const evalQuery = useQuery({ queryKey: ['governance-eval'], queryFn: getEvalSummary });
@@ -143,11 +140,10 @@ export function Governance() {
   const isError = auditQuery.isError || modelQuery.isError || parityQuery.isError;
   const isUsingFallback = isError || auditQuery.isError;
 
-  // Fall back to mock data so the page never blanks out. The badge shows
-  // when any of these are showing the demo data.
-  const audit = auditQuery.data ?? MOCK_AUDIT_TRAIL;
-  const model = modelQuery.data ?? MOCK_MODEL_PERFORMANCE;
-  const parity = parityQuery.data ?? MOCK_PARITY;
+  // Real data wins; mock fires only on error.
+  const audit = auditQuery.isError ? MOCK_AUDIT_TRAIL : auditQuery.data;
+  const model = modelQuery.isError ? MOCK_MODEL_PERFORMANCE : modelQuery.data;
+  const parity = parityQuery.isError ? MOCK_PARITY : parityQuery.data;
 
   const avgConfidence = model ? averageConfidence(model.confidenceDistribution) : undefined;
   const flaggedCount = model?.confidenceDistribution.find((b) => b.range === LOWEST_CONFIDENCE_BUCKET)?.count ?? 0;
@@ -155,7 +151,7 @@ export function Governance() {
   const avgParity = parityAxes.length > 0 ? parityAxes.reduce((sum, a) => sum + a.value, 0) / parityAxes.length : undefined;
 
   return (
-    <div>
+    <div className="px-6 py-6">
       <div className="flex items-center gap-3 mb-4">
         <h1 className="text-section text-text font-bold">AI Governance Center</h1>
         {isUsingFallback && <DemoFallbackBadge />}

@@ -30,9 +30,19 @@ export const MOCK_POPULATION_SUMMARY: PopulationSummary = {
   teamKpis: { criticalZonePatients: 23, totalPatients: 500 },
 };
 
+// Deterministic scatter (no `Math.random()`): the fallback must look identical
+// across page reloads and test runs, otherwise a snapshot taken during a real
+// failure would differ from one taken five minutes later — undermining the
+// "honest staging" guarantee. The simple LCG below produces the same 50 points
+// every time the module is imported.
 const MOCK_FALLBACK_SCATTER: ScatterPoint[] = Array.from({ length: 50 }, (_, i) => {
-  const riskScore = Math.round(40 + Math.random() * 60);
-  const urgency = Math.round(20 + Math.random() * 70);
+  // Park-Miller LCG, seeded with i+1 so each row gets a distinct but stable
+  // pseudo-random value in [0, 1). Multiplier 16807, modulus 2^31-1 (2147483647).
+  const seed = i + 1;
+  const lcg = (seed * 16807) % 2147483647;
+  const lcg2 = (lcg * 16807) % 2147483647;
+  const riskScore = 40 + Math.floor((lcg / 2147483647) * 60);
+  const urgency = 20 + Math.floor((lcg2 / 2147483647) * 70);
   return {
     id: `demo-${i + 1}`,
     riskScore,

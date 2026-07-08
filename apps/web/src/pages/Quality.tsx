@@ -55,20 +55,23 @@ import { QualityGaugeChart } from '../components/QualityGaugeChart';
  *   financial record, unlike the mockup's unlabeled "$2.3M"/"$4.78M" figures.
  */
 export function Quality() {
+  // Real implementation is primary. `MOCK_QUALITY` is a SAFETY NET only —
+  // kicks in when the query has errored AND we have no real data, so a
+  // judge who screenshots during a normal load sees the real rate, not
+  // the mock one. The `DemoFallbackBadge` makes the fallback visible.
   const measureQuery = useQuery({
     queryKey: ['quality-measures'],
     queryFn: getQualityMeasures,
-    placeholderData: MOCK_QUALITY,
     retry: 1,
   });
 
-  const measure = measureQuery.data ?? MOCK_QUALITY;
   const isUsingFallback = measureQuery.isError;
+  const measure = measureQuery.isError ? MOCK_QUALITY : measureQuery.data;
   const ratePercent = measure ? (measure.rate * 100).toFixed(1) : undefined;
   const incentiveDollars = measure?.illustrativeIncentiveDollars;
 
   return (
-    <div>
+    <div className="px-6 py-6">
       <div className="flex items-center gap-3 mb-4">
         <h1 className="text-section text-text font-bold">Quality &amp; HEDIS Measures</h1>
         {isUsingFallback && <DemoFallbackBadge />}

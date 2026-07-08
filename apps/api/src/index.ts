@@ -12,6 +12,7 @@ import { createTeamRouter } from './routes/team';
 import { createTasksRouter } from './routes/tasks';
 import { createSdohRouter } from './routes/sdoh';
 import { createCarePlansRouter } from './routes/carePlans';
+import { createAlertsRouter } from './routes/alerts';
 import { createEventsRouter, createSubscriptionWebhookRouter } from './routes/events';
 import { createEventHub } from './routes/eventHub';
 import { createCdsHooksRouter } from './routes/cdsHooks';
@@ -83,6 +84,8 @@ if (require.main === module) {
   app.use('/api/sdoh', createSdohRouter(fhirService));
   // S12 C.2 — `POST /api/care-plans/:patientId` for the Care Plan Builder.
   app.use('/api/care-plans', createCarePlansRouter(fhirService));
+  // S12 B.2 — clinical alerts derived from real FHIR risk profiles.
+  app.use('/api/alerts', createAlertsRouter(fhirService, db));
   // S11 A2 — Director-only Quality/HEDIS measure aggregate (W05/W07).
   app.use('/api/quality', createQualityRouter(fhirService, db));
   // S11 A3 — Director-only team performance aggregate (W04).

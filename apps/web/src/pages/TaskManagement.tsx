@@ -59,14 +59,16 @@ export function TaskManagement() {
     dueDate: new Date().toISOString().split('T')[0],
   });
 
+  // Real implementation is primary. `MOCK_TASKS` is a SAFETY NET only —
+  // kicks in when the query has errored AND we have no real data. The
+  // `DemoFallbackBadge` makes the fallback visible.
   const tasksQuery = useQuery({
     queryKey: ['tasks'],
     queryFn: listTasks,
-    placeholderData: MOCK_TASKS,
     retry: 1,
   });
-  const tasks = tasksQuery.data ?? MOCK_TASKS;
   const isUsingFallback = tasksQuery.isError;
+  const tasks = tasksQuery.isError ? MOCK_TASKS : tasksQuery.data;
 
   function showToast(message: string, type: 'success' | 'error' = 'success') {
     setToast({ message, type });
@@ -119,13 +121,14 @@ export function TaskManagement() {
     showToast('Task created');
   }
 
+  const safeTasks = tasks ?? [];
   const tabConfig: { label: string; status: TabStatus; count: number }[] = [
-    { label: 'To Do', status: 'pending', count: tasks.filter((t) => statusToTab(t.status) === 'pending').length },
-    { label: 'In Progress', status: 'in_progress', count: tasks.filter((t) => statusToTab(t.status) === 'in_progress').length },
-    { label: 'Completed', status: 'completed', count: tasks.filter((t) => statusToTab(t.status) === 'completed').length },
+    { label: 'To Do', status: 'pending', count: safeTasks.filter((t) => statusToTab(t.status) === 'pending').length },
+    { label: 'In Progress', status: 'in_progress', count: safeTasks.filter((t) => statusToTab(t.status) === 'in_progress').length },
+    { label: 'Completed', status: 'completed', count: safeTasks.filter((t) => statusToTab(t.status) === 'completed').length },
   ];
 
-  const filteredTasks = tasks.filter((t) => statusToTab(t.status) === activeTab);
+  const filteredTasks = safeTasks.filter((t) => statusToTab(t.status) === activeTab);
   const inputCls = 'w-full bg-bg border border-border rounded-lg px-3 py-2 text-text text-sm placeholder-text-dim focus:outline-none focus:border-cyan/50';
 
   return (

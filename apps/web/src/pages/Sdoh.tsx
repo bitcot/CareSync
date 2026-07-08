@@ -98,18 +98,21 @@ export function Sdoh() {
   const { id: patientId } = useParams<{ id: string }>();
   const [category, setCategory] = useState('all');
 
+  // Real implementation is primary. `MOCK_SDOH_RESOURCES` is a SAFETY NET only
+  // — kicks in when the query has errored AND we have no real data. The
+  // `DemoFallbackBadge` makes the fallback visible.
   const { data, isLoading, isError } = useQuery({
     queryKey: ['sdoh-resources'],
     queryFn: () => getSdohResources(),
-    placeholderData: MOCK_SDOH_RESOURCES,
     retry: 1,
   });
 
-  const filtered = (data ?? MOCK_SDOH_RESOURCES).filter((r) => category === 'all' || r.category === category);
   const isUsingFallback = isError;
+  const resources = isError ? MOCK_SDOH_RESOURCES : data;
+  const filtered = (resources ?? []).filter((r) => category === 'all' || r.category === category);
 
   return (
-    <div>
+    <div className="px-6 py-6">
       {patientId && (
         <Link to={`/patients/${patientId}`} className="text-label text-cyan hover:underline">
           ← Back to Patient
