@@ -61,14 +61,19 @@ the GenAI-washing anti-gaming flag if judges probe).
 *Rejected:* pure-Synthea cherry-pick (hero data not controllable);
 curated-only (population narrative too thin for the CDO scale story).
 
-### GD4 — Mobile stack: DEFERRED (open — see §8)
-Build **web first**. Mobile stack (PWA/responsive web vs. React Native) chosen
-after the web core lands.
-- **Recommendation on record:** responsive web / **PWA**, one codebase,
-  demoed in a phone frame — zero second toolchain; a "web + mobile responsive"
-  single codebase.
-- **Risk flagged:** M02 + M03 are demo-critical and Flow 3 (Social Worker) is
-  mobile-only, so this decision **cannot slip past Phase 3**.
+### GD4 — Mobile stack: PWA / responsive web (locked 2026-07-05)
+Resolved at the S7 pre-work gate, ahead of Iteration 7. **PWA / responsive
+web, one codebase**, demoed in a phone frame — the plan's own recommendation,
+accepted as-is:
+- Zero second toolchain (no React Native/Expo build pipeline).
+- Real FHIR Subscription push (via the S6 relay) works in-browser, no native
+  push infra needed.
+- M02/M03 build against `reference-materials/caresync-mobile.html` as one
+  responsive codebase alongside web.
+
+*Rejected:* React Native (Expo) — would add a second toolchain and rework
+Iteration 7's architecture for no demo-critical benefit; Flow 3 is
+mobile-only but not native-only.
 
 ### GD5 — Auth: app JWT + SMART Backend Services (locked)
 - Users log in with email/password → **app JWT** carrying role.
@@ -150,10 +155,20 @@ The 6 demo-critical screens are the non-negotiable core; everything else flexes.
 Demographic parity metrics on W06 (risk scores by age/sex/race/ethnicity) are
 **computed from real Synthea demographics**, not static display numbers.
 
-### GD13 — Agents on Claude Sonnet 5; testing stack (locked)
-- **Agent model:** **Claude Sonnet 5 (`claude-sonnet-5`)** — the current Sonnet
-  tier fits parallel multi-agent calls and the P7 cost story. (Consider Haiku 4.5
-  for the cheapest agents if latency/cost pressure appears.)
+### GD13 — Agents on Claude Sonnet 5; testing stack (locked; **provider revised 2026-07-04**)
+- **Agent model (original):** **Claude Sonnet 5 (`claude-sonnet-5`)** — the
+  current Sonnet tier fits parallel multi-agent calls and the P7 cost story.
+  (Consider Haiku 4.5 for the cheapest agents if latency/cost pressure appears.)
+- **Agent model (revised, S2):** No Anthropic API key was available to prove
+  the live-call verification step (D3) for S2. Rather than block the slice,
+  the agent provider was swapped to **OpenAI, `gpt-5.5`** (current flagship,
+  Responses API, structured outputs via `text.format`/tool calling) — a
+  straight substitution under the same `runRiskAgent`/`AgentEvent` contract,
+  not a dual-provider toggle. **This is a real, user-approved revision of a
+  previously "locked" decision, not a silent swap** — recorded here so later
+  slices (S3's three additional agents) build against OpenAI, not Anthropic.
+  Revisit if an Anthropic key becomes available and the team wants to switch
+  back or run both.
 - **Testing:** Vitest (web unit) · Jest + Supertest (API) · Playwright (E2E on
   the 3 demo flows). TDD per ADLC.
 
@@ -169,7 +184,7 @@ Browser (React + Vite + TS, Tailwind, Zustand, TanStack Query)
 Express API (TS)
   ├── auth/          JWT issue/verify, role → SMART scope map
   ├── fhir/          SMART Backend Services client → HAPI (client-credentials)
-  ├── agents/        Risk · CareGap · SDOH · ActionPlanner (Claude Sonnet 5)
+  ├── agents/        Risk · CareGap · SDOH · ActionPlanner (OpenAI gpt-5.5 — GD13 revised)
   │                    → structured output, citations validated vs bundle
   ├── orchestrator/  parallel dispatch + SSE stream of findings
   ├── cds-hooks/     patient-view service (public sandbox demoable)
@@ -285,11 +300,8 @@ Tasks 8, 11, 12, 16, 17 parallelize across developers once 5 and 7 land.
 
 ## 8. Open decision (must resolve by Phase 3)
 
-**GD4 — Mobile stack: PWA/responsive web vs. React Native (Expo).**
-- **Recommendation:** PWA / responsive web, one codebase, demoed in a phone
-  frame. Zero second toolchain; real FHIR Subscription push works in-browser.
-- **Trigger to decide:** before Task 14. M02/M03 are demo-critical and Flow 3
-  is mobile-only, so this is the one thing that can sink the demo if it drifts.
+**GD4 — Mobile stack: RESOLVED 2026-07-05 — PWA / responsive web.** See §1
+GD4 for the recorded decision. No decisions currently open.
 
 ---
 

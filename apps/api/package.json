@@ -10,7 +10,12 @@
     "test": "jest",
     "lint": "eslint src",
     "import": "tsx src/scripts/import-fhir.ts",
-    "seed": "tsx src/scripts/seed.ts"
+    "eval": "tsx src/scripts/eval.ts",
+    "review:render": "tsx src/scripts/render-clinician-review.ts",
+    "review:apply": "tsx src/scripts/apply-clinician-review.ts",
+    "outreach:validate": "tsx src/scripts/outreach-validate.ts",
+    "migrate": "tsx src/scripts/migrate.ts",
+    "seed": "tsx src/db/seed.ts"
   },
   "devDependencies": {
     "@types/bcrypt": "^6.0.0",
@@ -34,8 +39,9 @@
     "bcrypt": "^6.0.0",
     "better-sqlite3": "^12.11.1",
     "cors": "^2.8.6",
-    "dotenv": "^17.4.2",
     "express": "^5.2.1",
-    "jsonwebtoken": "^9.0.3"
+    "jsonwebtoken": "^9.0.3",
+    "jwks-rsa": "^4.1.0",
+    "openai": "^6.45.0"
   }
 }

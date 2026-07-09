@@ -6,11 +6,28 @@
  * re-running the import is idempotent.
  */
 
+/**
+ * US Core race/ethnicity, carried as an OMB category code + display so the
+ * import can render the us-core-race / us-core-ethnicity Patient extensions.
+ * Populated by the S5 population generator (`fhir-data/population.ts`) to
+ * feed the S8 demographic-parity aggregate (GD12); hero/panel patients leave
+ * this unset since they don't need it.
+ */
+export interface RaceEthnicity {
+  raceCode: string;
+  raceDisplay: string;
+  ethnicityCode: string;
+  ethnicityDisplay: string;
+}
+
 export interface SeedPatient {
   id: string;
   name: { given: string[]; family: string };
   gender: 'male' | 'female';
   birthDate: string;
+  /** S7 B2 — fabricated demo phone number (all seed data here is synthetic); threaded into Patient.telecom by import-fhir.ts for the M03 Call action. */
+  phone?: string;
+  raceEthnicity?: RaceEthnicity;
   conditions: Array<{ id: string; system: 'ICD-10'; code: string; display: string; onsetDateTime?: string }>;
   observations?: Array<{
     id: string;
@@ -20,7 +37,24 @@ export interface SeedPatient {
     unit: string;
     system?: string;
   }>;
+  /**
+   * S1 — AHC-HRSN screening observation, positive finding (screened, barriers found).
+   * FHIR shape is identical to a lab Observation except `valueString` carries
+   * the screening narrative; LOINC 71802-3, category 'sdoh'. Absence of this
+   * field means "no screening on file" — distinct from "screened, no barriers"
+   * which S14 introduces as `sdohNegative`.
+   */
   sdohPositive?: { id: string; note: string };
+  /**
+   * S14 — AHC-HRSN screening observation, negative finding (screened, no
+   * barriers identified). Mirrors `sdohPositive` in shape; the FHIR
+   * Observation built by `import-fhir.ts` differs only in `valueString`.
+   * Used by the eval labeling rule (`data/eval/labels.json`
+   * `_meta.labelingRules.sdoh`) to mark an explicit-negative row so the
+   * SDOH agreement rate stops being trivially gameable by a constant "no
+   * barrier" predictor.
+   */
+  sdohNegative?: { id: string; note: string };
   encounter?: { id: string; conditionId: string; dischargedHoursAgo: number };
   riskScore: number;
   tasks: Array<{ id: string; description: string; priority: 'critical' | 'high' | 'medium'; dueInDays: number }>;
@@ -35,6 +69,7 @@ export const MARIA_CHEN: SeedPatient = {
   name: { given: ['Maria'], family: 'Chen' },
   gender: 'female',
   birthDate: '1958-04-12',
+  phone: '+1-555-0142',
   conditions: [
     { id: 'maria-chen-diabetes', system: 'ICD-10', code: 'E11.9', display: 'Type 2 diabetes mellitus without complications' },
     { id: 'maria-chen-chf', system: 'ICD-10', code: 'I50.9', display: 'Heart failure, unspecified', onsetDateTime: hoursAgo(96) },
@@ -61,7 +96,12 @@ export const PANEL_PATIENTS: SeedPatient[] = [
     name: { given: ['James'], family: 'Okafor' },
     gender: 'male',
     birthDate: '1962-11-03',
+    phone: '+1-555-0157',
     conditions: [{ id: 'james-okafor-copd', system: 'ICD-10', code: 'J44.9', display: 'Chronic obstructive pulmonary disease, unspecified' }],
+    // S14 B1 — AHC-HRSN screening positive: COPD + recent inpatient discharge
+    // supports plausible post-discharge transportation + medication-cost
+    // barriers. Dev interpretation, not clinician-validated.
+    sdohPositive: { id: 'james-okafor-sdoh', note: 'AHC-HRSN screening positive: transportation barriers, medication-cost barriers' },
     riskScore: 62,
     tasks: [{ id: 'james-okafor-task-followup', description: 'Pulmonology follow-up scheduling', priority: 'high', dueInDays: 1 }],
   },
@@ -70,6 +110,7 @@ export const PANEL_PATIENTS: SeedPatient[] = [
     name: { given: ['Linda'], family: 'Torres' },
     gender: 'female',
     birthDate: '1970-02-19',
+    phone: '+1-555-0168',
     conditions: [{ id: 'linda-torres-ckd', system: 'ICD-10', code: 'N18.3', display: 'Chronic kidney disease, stage 3' }],
     riskScore: 71,
     tasks: [{ id: 'linda-torres-task-labs', description: 'Repeat basic metabolic panel', priority: 'medium', dueInDays: 3 }],
@@ -79,7 +120,13 @@ export const PANEL_PATIENTS: SeedPatient[] = [
     name: { given: ['Robert'], family: 'Kim' },
     gender: 'male',
     birthDate: '1948-07-25',
+    phone: '+1-555-0179',
     conditions: [{ id: 'robert-kim-hipfx', system: 'ICD-10', code: 'S72.001A', display: 'Fracture of unspecified part of neck of right femur, initial encounter' }],
+    // S14 B4 — AHC-HRSN screening explicit negative: acute hip fracture +
+    // otherwise stable demographic. Lets the SDOH agent's TN count
+    // distinguish "correctly said no" from "agent correctly abstained" on
+    // absence-of-screening rows.
+    sdohNegative: { id: 'robert-kim-sdoh', note: 'AHC-HRSN screening: no social barriers identified' },
     riskScore: 45,
     tasks: [],
   },
@@ -88,10 +135,15 @@ export const PANEL_PATIENTS: SeedPatient[] = [
     name: { given: ['Angela'], family: 'Diaz' },
     gender: 'female',
     birthDate: '1975-09-08',
+    phone: '+1-555-0183',
     conditions: [
       { id: 'angela-diaz-htn', system: 'ICD-10', code: 'I10', display: 'Essential (primary) hypertension' },
       { id: 'angela-diaz-depression', system: 'ICD-10', code: 'F33.1', display: 'Major depressive disorder, recurrent, moderate' },
     ],
+    // S14 B2 — AHC-HRSN screening positive: HTN + depression with zero
+    // Observations plausibly signals mental-health-access + social-isolation
+    // barriers. Dev interpretation, not clinician-validated.
+    sdohPositive: { id: 'angela-diaz-sdoh', note: 'AHC-HRSN screening positive: mental-health-access barriers, social isolation' },
     riskScore: 58,
     tasks: [{ id: 'angela-diaz-task-bp', description: 'Blood pressure recheck in 2 weeks', priority: 'medium', dueInDays: 14 }],
   },
@@ -100,7 +152,21 @@ export const PANEL_PATIENTS: SeedPatient[] = [
     name: { given: ['Samuel'], family: 'Wright' },
     gender: 'male',
     birthDate: '1955-01-30',
+    phone: '+1-555-0194',
+    // S13 follow-up — the seed previously carried only a 1-condition (CHF)
+    // record, but `riskScore: 79` plus the post-discharge tasks ("Daily weight
+    // monitoring", "Sodium-restricted diet education") implied a CHF inpatient
+    // admit with BNP evidence. The S13 Risk rubric (≥2 of {multi-condition,
+    // recent inpatient discharge ≤30d, abnormal labs}) couldn't see that
+    // evidence because the bundle didn't carry it, and the post-S13 eval
+    // flipped him from TP to FN. Enriching the seed with the encounter + obs
+    // the label implied gives the agent real evidence to evaluate against.
     conditions: [{ id: 'samuel-wright-chf', system: 'ICD-10', code: 'I50.9', display: 'Heart failure, unspecified' }],
+    observations: [
+      { id: 'samuel-wright-bnp', loincCode: '30934-4', display: 'Natriuretic peptide B', value: 380, unit: 'pg/mL' },
+      { id: 'samuel-wright-potassium', loincCode: '2823-3', display: 'Potassium', value: 3.5, unit: 'mmol/L' },
+    ],
+    encounter: { id: 'samuel-wright-chf-admit', conditionId: 'samuel-wright-chf', dischargedHoursAgo: 36 },
     riskScore: 79,
     tasks: [
       { id: 'samuel-wright-task-weight', description: 'Daily weight monitoring check-in', priority: 'high', dueInDays: 0 },

@@ -1,0 +1,8 @@
+{
+  "_meta": {
+    "purpose": "Tracks clinician review invitations — does not gate the eval, surfaces the engagement gap explicitly.",
+    "lastUpdated": "2026-07-08",
+    "consentBoundary": "By adding a `reviewer` entry, the committer affirms the reviewer has consented to their name being recorded in this public eval artifact."
+  },
+  "invitations": []
+}

@@ -10,6 +10,13 @@ export function ageSexLabel(birthDate: string, gender: string): string {
   return `${age}${sex}`;
 }
 
+/** Long-form sex label for the demographic block on profile screens, e.g. "Female". */
+export function sexLabel(gender: string): string {
+  if (gender === 'female') return 'Female';
+  if (gender === 'male') return 'Male';
+  return '';
+}
+
 export type RiskDotColor = 'red' | 'amber' | 'violet' | 'emerald';
 
 /** Severity-dot color bucket matching the reference mockup's `--dot` values. */
@@ -19,3 +26,11 @@ export function riskDotColor(riskScore: number): RiskDotColor {
   if (riskScore >= 40) return 'violet';
   return 'emerald';
 }
+
+/** Tailwind classes for the severity dot, keyed by `riskDotColor`'s bucket — shared by every patient-list row. */
+export const RISK_DOT_CLASS: Record<RiskDotColor, string> = {
+  red: 'bg-red shadow-[0_0_8px_theme(colors.red)]',
+  amber: 'bg-amber shadow-[0_0_8px_theme(colors.amber)]',
+  violet: 'bg-violet shadow-[0_0_8px_theme(colors.violet)]',
+  emerald: 'bg-emerald shadow-[0_0_8px_theme(colors.emerald)]',
+};

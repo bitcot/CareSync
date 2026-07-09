@@ -5,6 +5,7 @@ build/
 .env.local
 *.sqlite
 *.sqlite3
+data/*.db
 .DS_Store
 coverage/
 .claude/settings.local.json
@@ -12,3 +13,4 @@ test-results/
 playwright-report/
 blob-report/
 playwright/.cache/
+./reports/.*
