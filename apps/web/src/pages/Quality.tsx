@@ -3,6 +3,7 @@ import { getQualityMeasures } from '../api/client';
 import { DemoFallbackBadge } from '../components/DemoFallbackBadge';
 import { MOCK_QUALITY } from '../lib/demoFallbacks';
 import { QualityGaugeChart } from '../components/QualityGaugeChart';
+import { InfoNote } from '../components/ui/InfoNote';
 
 /**
  * W05/W07 Quality/HEDIS view (S11 A2) — rendered against
@@ -112,6 +113,15 @@ export function Quality() {
                 denominator={measure.denominator}
                 gapPatients={measure.gapPatients}
               />
+            </div>
+
+            {/* Chart caption — sits OUTSIDE the fixed-height gauge container so
+                it doesn't overflow into the AI-Identified Opportunity callout
+                below. Tone=muted matches the chart-caption convention. */}
+            <div className="mx-3.5 mb-3">
+              <InfoNote tone="muted" label="Reading this chart">
+                HEDIS completion vs. NCQA target; below → AI fires FHIR Tasks.
+              </InfoNote>
             </div>
 
             {/* AI-Identified Opportunity callout — real gap count + illustrative, clearly-labeled incentive estimate */}

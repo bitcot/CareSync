@@ -72,3 +72,4 @@ describe('QualityGaugeChart — mount/unmount guard (no real canvas context in j
     vi.restoreAllMocks();
   });
 });
+

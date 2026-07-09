@@ -55,6 +55,8 @@ describe('Quality — W05/W07 real HEDIS measure dashboard', () => {
     expect(await screen.findByText('Comprehensive Diabetes Care: HbA1c Testing')).toBeInTheDocument();
     const rate = await screen.findByTestId('quality-measure-rate');
     expect(rate).toHaveTextContent('0.3%');
+    // Chart caption — UI clarity wiring under the gauge.
+    expect(screen.getByText('Reading this chart')).toBeInTheDocument();
   });
 
   it('renders the real gap-patient count, not a hardcoded value', async () => {

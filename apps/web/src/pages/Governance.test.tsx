@@ -81,6 +81,10 @@ describe('Governance — W06 dashboard', () => {
     expect(screen.queryByText(/CareSync-v2\.3\.1/)).not.toBeInTheDocument();
     expect(screen.queryByText(/Regulatory Posture/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Download Audit Report/i)).not.toBeInTheDocument();
+    // Chart captions (parity radar + confidence chart) — UI clarity wiring
+    // under each canvas.
+    const chartLabels = screen.getAllByText('Reading this chart');
+    expect(chartLabels.length).toBeGreaterThanOrEqual(2);
   });
 
   it('renders the Analyses Cached tile from the real analyses count', async () => {

@@ -108,6 +108,8 @@ describe('Population — Phase 2 lead-port: KPI tiles + patient list layout', ()
     const criticalTile = screen.getByTestId('kpi-critical-zone');
     expect(criticalTile.textContent).toContain('11');
     expect(criticalTile.textContent).not.toContain('12');
+    // Scatter-chart caption — UI clarity wiring under the chart.
+    expect(screen.getByText('Reading this chart')).toBeInTheDocument();
 
     const costTile = screen.getByTestId('kpi-cost-avoidance');
     expect(costTile.textContent).toContain('$981,234');

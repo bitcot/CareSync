@@ -8,6 +8,7 @@ import { buildParityAxes } from '../lib/parityScore';
 import { ConfidenceChart } from '../components/ConfidenceChart';
 import { ParityRadarChart } from '../components/ParityRadarChart';
 import { StatTile } from '../components/StatTile';
+import { InfoNote } from '../components/ui/InfoNote';
 
 /**
  * W06 AI Governance Center (S8 Phase B) — real S8 A1-A3 aggregates rendered
@@ -257,6 +258,11 @@ export function Governance() {
                 <div className="h-[140px] flex-none" data-testid="governance-confidence-chart">
                   <ConfidenceChart buckets={model.confidenceDistribution} />
                 </div>
+                {/* Chart caption sits OUTSIDE the fixed-height canvas container
+                    so it doesn't overflow into the Cached Analyses table below. */}
+                <InfoNote tone="muted" label="Reading this chart">
+                  Per-agent self-reported confidence on this analysis.
+                </InfoNote>
                 <div>
                   <div className="text-xs font-bold uppercase tracking-wide text-text-muted mb-1">Cached Analyses</div>
                   {model.analyses.length === 0 && <p className="text-xs text-text-dim italic">No cached analyses yet.</p>}
@@ -287,6 +293,11 @@ export function Governance() {
                 <div className="h-[160px] flex-none" data-testid="governance-parity-chart">
                   <ParityRadarChart axes={parityAxes} />
                 </div>
+                {/* Chart caption sits OUTSIDE the fixed-height canvas container
+                    so it doesn't overflow into the GroupStatTable rows below. */}
+                <InfoNote tone="muted" label="Reading this chart">
+                  Risk-score parity across age/sex/race. ≤ 1.0 = no disparity.
+                </InfoNote>
                 <GroupStatTable title="By Age Band" groups={parity.byAgeBand} />
                 <GroupStatTable title="By Sex" groups={parity.bySex} />
                 <GroupStatTable title="By Race" groups={parity.byRace} />

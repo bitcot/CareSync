@@ -6,6 +6,7 @@ import type { Patient } from '../types';
 import { MOCK_PATIENTS, CRITICAL_RISK_THRESHOLD, HIGH_RISK_THRESHOLD } from './Population.fixtures';
 // S12 B.2 — reapply demo-fallback wiring on top of PR #14's lead-port.
 import { DemoFallbackBadge } from '../components/DemoFallbackBadge';
+import { InfoNote } from '../components/ui/InfoNote'; // chart-level caption only
 
 /**
  * Phase 2 of the lead-project integration: `Population.tsx` is now lead's
@@ -565,6 +566,10 @@ export function Population() {
           </div>
 
           <RiskScatterChart points={filtered} onDotClick={(id) => navigate(`/patients/${id}`)} />
+
+          <InfoNote tone="muted" label="Reading this chart" className="mt-2">
+            Each dot = one patient. X = risk score, Y = urgency.
+          </InfoNote>
 
           <p className="text-text-dim text-xs text-center flex-shrink-0">
             {usingMockFallback

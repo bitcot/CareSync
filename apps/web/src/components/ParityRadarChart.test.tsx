@@ -83,3 +83,4 @@ describe('ParityRadarChart — mount/unmount guard (no real canvas context in js
     vi.restoreAllMocks();
   });
 });
+
