@@ -44,7 +44,7 @@ const MOCK_MODEL: ModelPerformanceResult = {
   ],
 };
 
-const MOCK_PARITY: ParityResult = {
+const MOCK_PARITY_NO_MITIGATION: ParityResult = {
   byAgeBand: [
     { group: '65+', patientCount: 2, avgRiskScore: 85 },
     { group: '18-34', patientCount: 1, avgRiskScore: 15 },
@@ -52,6 +52,31 @@ const MOCK_PARITY: ParityResult = {
   bySex: [{ group: 'female', patientCount: 3, avgRiskScore: 60 }],
   byRace: [{ group: 'White', patientCount: 3, avgRiskScore: 60 }],
   byEthnicity: [{ group: 'Not Hispanic or Latino', patientCount: 3, avgRiskScore: 60 }],
+  // S19 Thread B — empty mitigation array; the tile stays hidden.
+  mitigation: [],
+};
+
+// Backwards-compat alias — existing tests reference `MOCK_PARITY` and need
+// the mitigation field populated to satisfy the type, but they assert
+// behavior unrelated to the tile.
+const MOCK_PARITY = MOCK_PARITY_NO_MITIGATION;
+
+const MOCK_PARITY_WITH_MITIGATION: ParityResult = {
+  ...MOCK_PARITY_NO_MITIGATION,
+  mitigation: [
+    {
+      dimension: 'byRace',
+      severity: 'red',
+      evidence: 'byRace: max "White" avg 80 vs min "Black or African American" avg 50 — delta 30',
+      recommendedAction: 'audit rubric for that group',
+    },
+    {
+      dimension: 'byEthnicity',
+      severity: 'amber',
+      evidence: 'group "Hispanic or Latino" has n=2 (< 3) — too few for reliable inference',
+      recommendedAction: 'insufficient sample',
+    },
+  ],
 };
 
 function renderGovernance() {
@@ -197,5 +222,31 @@ describe('Governance — W06 dashboard', () => {
     renderGovernance();
     const tile = await screen.findByTestId('governance-eval-tile');
     expect(tile).toBeInTheDocument();
+  });
+
+  // S19 Thread B — Mitigation Recommended tile behavior.
+  it('hides the Mitigation Recommended tile when parity.mitigation is empty', async () => {
+    // Default mock already has mitigation: []; just assert the tile is absent.
+    renderGovernance();
+    await screen.findByTestId('governance-parity-chart');
+    expect(screen.queryByTestId('governance-mitigation-tile')).not.toBeInTheDocument();
+  });
+
+  it('renders the Mitigation Recommended tile with each flag\'s dimension, evidence, and recommended action when present', async () => {
+    vi.mocked(client.getParityMetrics).mockResolvedValue(MOCK_PARITY_WITH_MITIGATION);
+    renderGovernance();
+    const tile = await screen.findByTestId('governance-mitigation-tile');
+    // Heading + count.
+    expect(within(tile).getByText(/Mitigation Recommended/i)).toBeInTheDocument();
+    expect(within(tile).getByText(/2 flag/i)).toBeInTheDocument();
+    // Both flags' evidence strings render (verifies the loop, not the order).
+    expect(within(tile).getByText(/byRace.*max.*White.*Black.*delta.*30/)).toBeInTheDocument();
+    expect(within(tile).getByText(/Hispanic or Latino.*n=2/)).toBeInTheDocument();
+    // Both severity bands render.
+    expect(within(tile).getByText(/red.*byRace/i)).toBeInTheDocument();
+    expect(within(tile).getByText(/amber.*byEthnicity/i)).toBeInTheDocument();
+    // Recommended actions render.
+    expect(within(tile).getByText(/recommended: audit rubric for that group/i)).toBeInTheDocument();
+    expect(within(tile).getByText(/recommended: insufficient sample/i)).toBeInTheDocument();
   });
 });

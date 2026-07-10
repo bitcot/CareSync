@@ -195,11 +195,31 @@ export interface ParityGroupStat {
   avgRiskScore: number;
 }
 
+// S19 Thread B — one mitigation flag surfaced by the parity computation.
+// Empty array means no concern; the Governance page hides the
+// "Mitigation Recommended" tile in that case.
+export type ParityDimension = 'byAgeBand' | 'bySex' | 'byRace' | 'byEthnicity';
+export type ParitySeverity = 'amber' | 'red';
+export type ParityRecommendedAction =
+  | 're-run with refreshed cohort'
+  | 'audit rubric for that group'
+  | 'insufficient sample';
+
+export interface MitigationFlag {
+  dimension: ParityDimension;
+  severity: ParitySeverity;
+  evidence: string;
+  recommendedAction: ParityRecommendedAction;
+}
+
 export interface ParityResult {
   byAgeBand: ParityGroupStat[];
   bySex: ParityGroupStat[];
   byRace: ParityGroupStat[];
   byEthnicity: ParityGroupStat[];
+  // S19 Thread B — empty array when no concern. The Governance page hides
+  // the tile when this is empty.
+  mitigation: MitigationFlag[];
 }
 
 /** Director-only demographic parity (GD12) — real, computed from cached risk scores joined to live HAPI demographics; see `apps/api/src/governance/service.ts`'s `getParityMetrics` doc. */

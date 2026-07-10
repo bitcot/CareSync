@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { getAuditTrail, getModelPerformance, getParityMetrics, getEvalSummary } from '../api/client';
+import type { MitigationFlag } from '../api/client';
 import { DemoFallbackBadge } from '../components/DemoFallbackBadge';
 import { MOCK_AUDIT_TRAIL, MOCK_MODEL_PERFORMANCE, MOCK_PARITY } from '../lib/demoFallbacks';
 import { averageConfidence } from '../lib/confidenceChartGeometry';
@@ -107,6 +108,44 @@ function EvalSummaryContent({ summary }: { summary: unknown }) {
     return <p className="text-body text-text">{(summary as Record<string, unknown>).headline as string}</p>;
   }
   return <pre className="text-xs text-text-muted whitespace-pre-wrap break-words">{JSON.stringify(summary, null, 2)}</pre>;
+}
+
+/**
+ * S19 Thread B — the conditional "Mitigation Recommended" tile. Hidden by
+ * the parent component (`{parity.mitigation.length > 0 && <MitigationTile />}`)
+ * when there are no flags; visible only when at least one flag fires. Each
+ * flag renders dimension + severity + evidence + recommended action.
+ *
+ * Severity colors match the existing UI palette: 'amber' → yellow/amber
+ * accent, 'red' → red accent. The card border color tracks the highest
+ * severity present (red wins if any flag is red).
+ */
+function MitigationTile({ flags }: { flags: MitigationFlag[] }) {
+  const hasRed = flags.some((f) => f.severity === 'red');
+  const borderClass = hasRed ? 'border-red' : 'border-amber';
+  const headingClass = hasRed ? 'text-red' : 'text-amber';
+  return (
+    <div
+      className={`bg-surface-raised border ${borderClass} rounded-card p-2.5`}
+      data-testid="governance-mitigation-tile"
+    >
+      <div className="flex items-center gap-2 mb-1">
+        <span className={`text-label font-bold ${headingClass}`}>Mitigation Recommended</span>
+        <span className="text-xs text-text-muted">{flags.length} flag(s)</span>
+      </div>
+      <ul className="flex flex-col gap-1.5">
+        {flags.map((f, i) => (
+          <li key={`${f.dimension}-${i}`} className="text-xs">
+            <div className={`font-bold uppercase tracking-wide ${f.severity === 'red' ? 'text-red' : 'text-amber'}`}>
+              {f.severity} · {f.dimension}
+            </div>
+            <div className="text-text">{f.evidence}</div>
+            <div className="text-text-muted italic">recommended: {f.recommendedAction}</div>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
 }
 
 export function Governance() {
@@ -287,6 +326,13 @@ export function Governance() {
                 <div className="h-[160px] flex-none" data-testid="governance-parity-chart">
                   <ParityRadarChart axes={parityAxes} />
                 </div>
+                {/* S19 Thread B — Mitigation Recommended tile. Hidden when the
+                    parity result carries no flags. Visible (with amber/red
+                    accent) when at least one flag fires. Each flag renders
+                    its dimension, evidence, and recommended action. */}
+                {parity.mitigation.length > 0 && (
+                  <MitigationTile flags={parity.mitigation} />
+                )}
                 <GroupStatTable title="By Age Band" groups={parity.byAgeBand} />
                 <GroupStatTable title="By Sex" groups={parity.bySex} />
                 <GroupStatTable title="By Race" groups={parity.byRace} />

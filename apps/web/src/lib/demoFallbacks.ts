@@ -120,6 +120,11 @@ export const MOCK_PARITY: ParityResult = {
   bySex: [],
   byRace: [],
   byEthnicity: [],
+  // S19 Thread B — empty mitigation array for the demo fallback. The
+  // Governance page hides the "Mitigation Recommended" tile when this is
+  // empty. The fallback path (which fires only on real-data error) shows
+  // the same empty state as a real run with no flagged disparities.
+  mitigation: [],
 };
 
 // --- Quality / HEDIS (W05) -------------------------------------------------
