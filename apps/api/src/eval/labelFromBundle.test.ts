@@ -54,7 +54,7 @@ function conditionResource(id: string, icd10: string): any {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function observationResource(id: string, loincCode: string): any {
+function observationResource(id: string, loincCode: string, value: number = 0): any {
   return {
     resourceType: 'Observation',
     id,
@@ -65,7 +65,7 @@ function observationResource(id: string, loincCode: string): any {
     },
     subject: { reference: 'Patient/test' },
     effectiveDateTime: new Date().toISOString(),
-    valueQuantity: { value: 0, unit: 'unit' },
+    valueQuantity: { value, unit: 'unit' },
   };
 }
 
@@ -124,6 +124,55 @@ describe('labelFromBundle — careGap (data/eval/labels.json:_meta.labelingRules
     // convention are "left UNLABELED ... rather than guessing".
     const bundle = bundleWith(conditionResource('p-cond-1', 'F33.1'));
     expect(labelFromBundle(bundle, 'careGap')).toBeNull();
+  });
+
+  // S19 review-fix: the rule now also flags an Observation PRESENT but
+  // with an out-of-range value as a gap. Without this, pop-0014 (HbA1c
+  // 10.2% + BNP 380) was a held-out FP.
+  it('returns true when the Observation is present but HbA1c value is above the abnormal threshold (> 9.0%)', () => {
+    const bundle = bundleWith(
+      conditionResource('p-cond-1', 'E11.9'),
+      observationResource('p-hba1c', '4548-4', 10.2),
+    );
+    expect(labelFromBundle(bundle, 'careGap')).toBe(true);
+  });
+
+  it('returns false when the Observation is present with HbA1c at the controlled threshold (≤ 9.0%)', () => {
+    const bundle = bundleWith(
+      conditionResource('p-cond-1', 'E11.9'),
+      observationResource('p-hba1c', '4548-4', 6.5),
+    );
+    expect(labelFromBundle(bundle, 'careGap')).toBe(false);
+  });
+
+  it('returns true when the Observation is present but BNP value is above the abnormal threshold (> 200 pg/mL)', () => {
+    const bundle = bundleWith(
+      conditionResource('p-cond-1', 'I50.9'),
+      observationResource('p-bnp', '30934-4', 380),
+    );
+    expect(labelFromBundle(bundle, 'careGap')).toBe(true);
+  });
+
+  it('returns true when the Observation is present but eGFR value is below the abnormal threshold (< 30 mL/min)', () => {
+    const bundle = bundleWith(
+      conditionResource('p-cond-1', 'N18.3'),
+      observationResource('p-egfr', '62238-1', 22),
+    );
+    expect(labelFromBundle(bundle, 'careGap')).toBe(true);
+  });
+
+  it('returns false on a malformed Observation (no valueQuantity, no value)', () => {
+    // Defensive parse: isAbnormalValue returns false on non-numeric values,
+    // so a missing value does NOT trigger the value-range gap.
+    const malformed = {
+      resourceType: 'Observation',
+      id: 'p-malformed',
+      status: 'final',
+      code: { coding: [{ system: 'http://loinc.org', code: '4548-4' }] },
+      subject: { reference: 'Patient/test' },
+    };
+    const bundle = bundleWith(conditionResource('p-cond-1', 'E11.9'), malformed);
+    expect(labelFromBundle(bundle, 'careGap')).toBe(false);
   });
 });
 

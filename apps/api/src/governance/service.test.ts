@@ -1,4 +1,5 @@
-import { bucketFor, extractConfidences, ageFromBirthDate, stratify } from './service';
+import { bucketFor, extractConfidences, ageFromBirthDate, stratify, parityMitigationFlags, PARITY_DELTA_THRESHOLD, PARITY_SMALL_SAMPLE_THRESHOLD } from './service';
+import type { ParityResult } from './service';
 
 // Direct unit tests for governance/service.ts's pure helpers — boundary
 // cases that are awkward to pin precisely through the HTTP-level fixtures in
@@ -94,5 +95,159 @@ describe('stratify', () => {
 
   it('returns an empty array for no rows', () => {
     expect(stratify([])).toEqual([]);
+  });
+});
+
+describe('parityMitigationFlags (S19 Thread B)', () => {
+  // Helper to build a minimal ParityResult fixture. `mitigation` is always
+  // populated by `parityMitigationFlags` itself, so the fixture starts
+  // with an empty array and the test asserts the output.
+  function parityFixture(overrides: Partial<ParityResult>): ParityResult {
+    return {
+      byAgeBand: [],
+      bySex: [],
+      byRace: [],
+      byEthnicity: [],
+      mitigation: [],
+      ...overrides,
+    };
+  }
+
+  it('returns no flags for a fully-populated parity result with low deltas', () => {
+    const parity = parityFixture({
+      byAgeBand: [
+        { group: '18-34', patientCount: 5, avgRiskScore: 50 },
+        { group: '35-49', patientCount: 6, avgRiskScore: 55 },
+        { group: '50-64', patientCount: 7, avgRiskScore: 52 },
+      ],
+      bySex: [
+        { group: 'male', patientCount: 10, avgRiskScore: 51 },
+        { group: 'female', patientCount: 8, avgRiskScore: 53 },
+      ],
+    });
+    expect(parityMitigationFlags(parity)).toEqual([]);
+  });
+
+  it('flags a single dimension when |max - min| > PARITY_DELTA_THRESHOLD (red severity)', () => {
+    const parity = parityFixture({
+      byRace: [
+        { group: 'White', patientCount: 10, avgRiskScore: 50 },
+        { group: 'Black or African American', patientCount: 10, avgRiskScore: 80 },
+      ],
+    });
+    const flags = parityMitigationFlags(parity);
+    expect(flags).toHaveLength(1);
+    expect(flags[0]).toMatchObject({
+      dimension: 'byRace',
+      severity: 'red',
+      recommendedAction: 'audit rubric for that group',
+    });
+    // Evidence string names both endpoints and the delta so a reviewer
+    // can audit the trigger without re-running the function. The exact
+    // order of "max" vs "min" in the evidence string is implementation-
+    // defined (it follows max→min), so the test pins the substrings
+    // independently rather than asserting positional order.
+    expect(flags[0].evidence).toMatch(/White/);
+    expect(flags[0].evidence).toMatch(/Black or African American/);
+    expect(flags[0].evidence).toMatch(/\b80\b/);
+    expect(flags[0].evidence).toMatch(/\b50\b/);
+    expect(flags[0].evidence).toMatch(/delta.*30/);
+  });
+
+  it('does NOT flag a delta exactly equal to PARITY_DELTA_THRESHOLD (strict inequality)', () => {
+    // Boundary case: 70 - 55 = 15, exactly at threshold. The implementation
+    // uses strict `>`, so this is NOT a flag.
+    const parity = parityFixture({
+      byRace: [
+        { group: 'A', patientCount: 5, avgRiskScore: 70 },
+        { group: 'B', patientCount: 5, avgRiskScore: 55 },
+      ],
+    });
+    expect(parityMitigationFlags(parity)).toEqual([]);
+  });
+
+  it('flags a delta just over PARITY_DELTA_THRESHOLD (15.1 boundary)', () => {
+    const parity = parityFixture({
+      byRace: [
+        { group: 'A', patientCount: 5, avgRiskScore: 70.05 },
+        { group: 'B', patientCount: 5, avgRiskScore: 55 },
+      ],
+    });
+    expect(parityMitigationFlags(parity).length).toBeGreaterThan(0);
+  });
+
+  it('flags a small-sample group (n < PARITY_SMALL_SAMPLE_THRESHOLD) with amber severity', () => {
+    const parity = parityFixture({
+      byEthnicity: [
+        { group: 'Hispanic or Latino', patientCount: 12, avgRiskScore: 50 },
+        { group: 'Not Hispanic or Latino', patientCount: 2, avgRiskScore: 50 }, // n<3
+      ],
+    });
+    const flags = parityMitigationFlags(parity);
+    expect(flags).toHaveLength(1);
+    expect(flags[0]).toMatchObject({
+      dimension: 'byEthnicity',
+      severity: 'amber',
+      recommendedAction: 'insufficient sample',
+    });
+    expect(flags[0].evidence).toMatch(/Not Hispanic.*n=2/);
+  });
+
+  it('does NOT flag a group with exactly n = PARITY_SMALL_SAMPLE_THRESHOLD (strict inequality)', () => {
+    const parity = parityFixture({
+      byEthnicity: [
+        { group: 'A', patientCount: 5, avgRiskScore: 50 },
+        { group: 'B', patientCount: 3, avgRiskScore: 50 }, // exactly 3
+      ],
+    });
+    expect(parityMitigationFlags(parity)).toEqual([]);
+  });
+
+  it('emits both a small-sample AND a disparity flag when both apply on the same dimension', () => {
+    const parity = parityFixture({
+      bySex: [
+        { group: 'male', patientCount: 10, avgRiskScore: 50 },
+        { group: 'female', patientCount: 2, avgRiskScore: 80 }, // n<3 AND delta > 15
+      ],
+    });
+    const flags = parityMitigationFlags(parity);
+    expect(flags).toHaveLength(2);
+    expect(flags.find((f) => f.severity === 'amber' && f.recommendedAction === 'insufficient sample')).toBeDefined();
+    expect(flags.find((f) => f.severity === 'red' && f.recommendedAction === 'audit rubric for that group')).toBeDefined();
+  });
+
+  it('flags multiple dimensions independently', () => {
+    const parity = parityFixture({
+      byRace: [
+        { group: 'White', patientCount: 10, avgRiskScore: 50 },
+        { group: 'Black or African American', patientCount: 10, avgRiskScore: 80 },
+      ],
+      byAgeBand: [
+        { group: '18-34', patientCount: 10, avgRiskScore: 50 },
+        { group: '65+', patientCount: 10, avgRiskScore: 75 },
+      ],
+    });
+    const flags = parityMitigationFlags(parity);
+    expect(flags).toHaveLength(2);
+    expect(flags.map((f) => f.dimension).sort()).toEqual(['byAgeBand', 'byRace']);
+  });
+
+  it('returns no flags when every dimension is empty', () => {
+    const parity = parityFixture({});
+    expect(parityMitigationFlags(parity)).toEqual([]);
+  });
+
+  it('does not flag a single-group dimension (no delta to compute)', () => {
+    const parity = parityFixture({
+      byRace: [{ group: 'White', patientCount: 20, avgRiskScore: 50 }],
+    });
+    expect(parityMitigationFlags(parity)).toEqual([]);
+  });
+
+  it('exports the threshold constants for direct pinning', () => {
+    // The thresholds are surfaced as exported constants; pinning their values
+    // guards against silent drift if a future slice changes them.
+    expect(PARITY_DELTA_THRESHOLD).toBe(15);
+    expect(PARITY_SMALL_SAMPLE_THRESHOLD).toBe(3);
   });
 });

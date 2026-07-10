@@ -185,12 +185,51 @@ export interface ParityGroupStat {
   avgRiskScore: number;
 }
 
+// S19 Thread B — when the parity aggregate surfaces a concerning delta
+// between demographic groups, or any group has too few members to support
+// statistical inference, this flag surfaces the concern. The Governance
+// page renders a "Mitigation Recommended" tile when the array is non-empty;
+// the API also writes a single `parity-mitigation-recommended` audit row
+// per call. See `prd-s19.md §Thread B` for the design rationale
+// (escalation, not intervention, at POC scope).
+export type ParityDimension = 'byAgeBand' | 'bySex' | 'byRace' | 'byEthnicity';
+export type ParitySeverity = 'amber' | 'red';
+export type ParityRecommendedAction =
+  | 'audit rubric for that group'
+  | 'insufficient sample';
+
+export interface MitigationFlag {
+  dimension: ParityDimension;
+  severity: ParitySeverity;
+  evidence: string;
+  recommendedAction: ParityRecommendedAction;
+}
+
 export interface ParityResult {
   byAgeBand: ParityGroupStat[];
   bySex: ParityGroupStat[];
   byRace: ParityGroupStat[];
   byEthnicity: ParityGroupStat[];
+  // S19 Thread B — empty array when no concern is detected. The Governance
+  // page hides the "Mitigation Recommended" tile in that case. The
+  // getParityMetrics caller also writes a `parity-mitigation-recommended`
+  // audit row when this array is non-empty.
+  mitigation: MitigationFlag[];
 }
+
+// S19 Thread B — replaceable constant. The threshold is the absolute risk-
+// score delta between max-avg and min-avg group on a single dimension that
+// triggers a 'red' flag. At POC scale with a 500-patient procedural cohort
+// and a 0-100 riskScore scale, a delta of 15 is large enough to be
+// noticeable but not so small that normal seed-derived variance flags
+// everything. The `parityMitigationFlags` function exports this constant
+// via re-export for direct unit testing.
+export const PARITY_DELTA_THRESHOLD = 15;
+
+// S19 Thread B — small-sample threshold. When any single demographic group
+// has fewer than this many patients, statistical inference on the
+// group-level avgRiskScore is unreliable. Exported for direct unit testing.
+export const PARITY_SMALL_SAMPLE_THRESHOLD = 3;
 
 // Common clinical/demographic age bands (S8 A3) — the same <18/18-34/35-49/
 // 50-64/65+ split the plan text itself suggests, coarse enough that even
@@ -248,6 +287,88 @@ export function stratify(rows: { group: string | undefined; riskScore: number }[
 }
 
 /**
+ * S19 Thread B — pure function: inspects a `ParityResult` and returns the
+ * list of mitigation flags the Governance page + audit trail should surface.
+ *
+ * Two trigger conditions per dimension (`byAgeBand`, `bySex`, `byRace`,
+ * `byEthnicity`):
+ *
+ *   1. **Disparity**: |max(group.avgRiskScore) − min(group.avgRiskScore)|
+ *      > `PARITY_DELTA_THRESHOLD` (15). Severity `'red'`. The evidence
+ *      string names both endpoints and the delta; the recommended action
+ *      is `'audit rubric for that group'` because a >15-point delta on a
+ *      0–100 riskScore scale is large enough to suggest a rubric bias.
+ *
+ *   2. **Small sample**: any group has `patientCount < PARITY_SMALL_SAMPLE_THRESHOLD`
+ *      (3). Severity `'amber'`. The evidence string names the group + n;
+ *      the recommended action is `'insufficient sample'` because a delta
+ *      computed over <3 patients is statistically unreliable regardless of
+ *      the magnitude.
+ *
+ * Dimensions with no groups (e.g., `byRace: []`) produce no flags. Empty
+ * input returns `[]` (the tile stays hidden in the UI).
+ *
+ * Pure: no I/O, no LLM, no global state. Exported for direct unit testing
+ * (boundary cases at the threshold itself, multi-dimensional flag lists,
+ * and the order independence of flag emission).
+ */
+export function parityMitigationFlags(parity: ParityResult): MitigationFlag[] {
+  const flags: MitigationFlag[] = [];
+  const dimensions: ParityDimension[] = ['byAgeBand', 'bySex', 'byRace', 'byEthnicity'];
+
+  for (const dimension of dimensions) {
+    const groups = parity[dimension];
+    if (!groups || groups.length === 0) continue;
+
+    // Small-sample flags first (amber) — surface data-quality issues before
+    // the disparity interpretation. Order within a dimension is deterministic
+    // (stratify preserves insertion order) but a single small-sample group is
+    // named explicitly regardless of position.
+    //
+    // S19 review note: implementation-plan-s19.md §Thread B documents the
+    // trigger as "avgRiskScore < 0 AND n < 3". The first conjunct is latent
+    // because `stratify` clamps avgRiskScore into [0, 100] — the trigger
+    // reduces to `n < 3` in practice. We retain the structural form
+    // (numerator check + sample-size check) so a future change that lifts
+    // the [0, 100] clamp (e.g., a normalized -1..+1 risk scale) would
+    // automatically start surfacing the amber flag for out-of-range
+    // groups without code changes.
+    for (const g of groups) {
+      if (g.avgRiskScore < 0 || g.patientCount < PARITY_SMALL_SAMPLE_THRESHOLD) {
+        flags.push({
+          dimension,
+          severity: 'amber',
+          evidence: `group "${g.group}" has n=${g.patientCount} (< ${PARITY_SMALL_SAMPLE_THRESHOLD}) — too few for reliable inference`,
+          recommendedAction: 'insufficient sample',
+        });
+      }
+    }
+
+    // Disparity flag: only meaningful when there are at least 2 groups
+    // AND at least one group has enough patients to be representative
+    // (otherwise small-sample would have flagged it already).
+    if (groups.length >= 2) {
+      const scores = groups.map((g) => g.avgRiskScore);
+      const max = Math.max(...scores);
+      const min = Math.min(...scores);
+      const delta = Math.abs(max - min);
+      if (delta > PARITY_DELTA_THRESHOLD) {
+        const maxGroup = groups.find((g) => g.avgRiskScore === max)!;
+        const minGroup = groups.find((g) => g.avgRiskScore === min)!;
+        flags.push({
+          dimension,
+          severity: 'red',
+          evidence: `${dimension}: max "${maxGroup.group}" avg ${max} vs min "${minGroup.group}" avg ${min} — delta ${delta.toFixed(1)}`,
+          recommendedAction: 'audit rubric for that group',
+        });
+      }
+    }
+  }
+
+  return flags;
+}
+
+/**
  * S8 A3 — Director-only demographic parity (GD12): joins every cached
  * analysis's risk score (`resultJson.risk.complete.riskScore`, the same
  * shape A2 reads) to that patient's REAL HAPI demographics (age computed
@@ -282,12 +403,36 @@ export async function getParityMetrics(
     demo: demographicsByPatientId.get(patientId),
   }));
 
-  return {
+  const result: ParityResult = {
     byAgeBand: stratify(joined.map((j) => ({ group: ageBandFor(ageFromBirthDate(j.demo?.birthDate, now)), riskScore: j.riskScore }))),
     bySex: stratify(joined.map((j) => ({ group: j.demo?.sex, riskScore: j.riskScore }))),
     byRace: stratify(joined.map((j) => ({ group: j.demo?.race, riskScore: j.riskScore }))),
     byEthnicity: stratify(joined.map((j) => ({ group: j.demo?.ethnicity, riskScore: j.riskScore }))),
+    mitigation: [], // populated below
   };
+  result.mitigation = parityMitigationFlags(result);
+
+  // S19 Thread B — write a single audit row when any flag fires. The
+  // `fhirResource` field carries the structured flag list (the audit_log
+  // schema has no `details` column; encoding in `fhir_resource` keeps the
+  // 4-field contract and stays within the `writeAudit` signature). The
+  // detail is encoded as a JSON-suffixed path:
+  //   `Governance/parity/<dim>:<severity>:<recommendedAction>`
+  // joined with `;`. One row per call (not per flag) — multiple flags
+  // collapse to a single audit entry to avoid noise on the audit trail.
+  if (result.mitigation.length > 0) {
+    const summary = result.mitigation
+      .map((f) => `${f.dimension}:${f.severity}:${f.recommendedAction}`)
+      .join(';');
+    writeAudit(db, {
+      actor: 'system',
+      action: 'parity-mitigation-recommended',
+      fhirResource: `Governance/parity/${summary}`,
+      outcome: 'flagged',
+    });
+  }
+
+  return result;
 }
 
 // --- B — S9 eval headline tile -------------------------------------------

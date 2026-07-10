@@ -39,6 +39,11 @@ describe('buildParityAxes — 4 real axes (age band/sex/race/ethnicity), no fabr
     bySex: [group('female', 60), group('male', 60)],
     byRace: [group('Black or African American', 92), group('White', 20)],
     byEthnicity: [group('Not Hispanic or Latino', 55)],
+    // S19 Thread B added `mitigation` as required on ParityResult; this test
+    // doesn't exercise it (buildParityAxes only reads the four axes above),
+    // but the type requires it, so the test fixture carries an empty array —
+    // matching the pattern in demoFallbacks.ts and Governance.test.tsx.
+    mitigation: [],
   };
 
   it('produces exactly 4 axes labeled Age Band / Sex / Race / Ethnicity', () => {

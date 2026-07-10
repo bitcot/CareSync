@@ -41,6 +41,13 @@ const LOINC_SYSTEM = 'http://loinc.org';
 const SDOH_AHC_HRSN_LOINC = '71802-3';
 const CRITICAL_RISK_THRESHOLD = 75;
 
+// S19 review-fix: per-LOINC abnormal-value thresholds for the value-range
+// check added to careGapLabel. Mirror `confidenceScorer.ts`'s Anchor C
+// constants exactly.
+const HBA1C_LOINC = '4548-4';
+const BNP_LOINC = '30934-4';
+const EGFR_LOINC = '62238-1';
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function icd10Code(resource: any): string | undefined {
   const codings = resource?.code?.coding;
@@ -109,12 +116,24 @@ function recencyHoursFromBundle(bundle: PatientBundle): number {
 
 /** Care Gap label per `_meta.labelingRules.careGap`:
  *   - null   if no qualifying Condition (E11.9 / I50.9 / N18.3) is present;
- *   - true   if any qualifying Condition is present AND its matching LOINC
- *            Observation is missing (a real, defensible monitoring gap);
- *   - false  if every qualifying Condition has its matching Observation on
- *            file.
- * Conditions without an established convention (F33.1, J44.9, I10, etc.)
- * intentionally stay unlabeled — same logic the rule text encodes.
+ *   - true   if any qualifying Condition is present AND either:
+ *              (a) its matching LOINC Observation is missing (a real,
+ *                  defensible monitoring gap — the record shows the test
+ *                  was never done); OR
+ *              (b) [S19 review-fix] its matching LOINC Observation is
+ *                  present BUT the value crosses the abnormal threshold
+ *                  (HbA1c > 9.0%, BNP > 200 pg/mL, eGFR < 30 mL/min) —
+ *                  the test was done but the value is clinically
+ *                  actionable, which is the same semantic as "the test
+ *                  wasn't done" for a care-coordination system.
+ *   - false  if every qualifying Condition has its matching Observation
+ *            on file AND the value is within the controlled range.
+ *
+ * The S19 semantic upgrade from (a)-only to (a)∪(b) reconciles the
+ * labeling rule with the Care Gap agent's value-range reading. Without
+ * it, pop-0014 (HbA1c 10.2% + BNP 380) was a held-out FP because the
+ * rule said "Observation on file = no gap" while the agent correctly
+ * flagged the abnormal values.
  */
 function careGapLabel(bundle: PatientBundle): boolean | null {
   const qualifyingCodes: string[] = [];
@@ -128,16 +147,42 @@ function careGapLabel(bundle: PatientBundle): boolean | null {
   }
   if (qualifyingCodes.length === 0) return null;
 
-  // Any qualifying Condition that lacks its required Observation → gap.
+  // Any qualifying Condition that lacks its required Observation, OR has
+  // an abnormal value, → gap.
   for (const code of qualifyingCodes) {
     const convention = CARE_GAP_LOINC_CONVENTIONS.find((c) => c.icd10 === code);
     if (!convention) continue;
-    const requiredPresent = (bundle.resources ?? []).some((r) =>
+    const matchingObs = (bundle.resources ?? []).find((r) =>
       isObservationWithLoinc(r, convention.loinc),
     );
-    if (!requiredPresent) return true;
+    if (!matchingObs) return true;
+    if (isAbnormalValue(matchingObs, convention.loinc)) return true;
   }
   return false;
+}
+
+// S19 review-fix: per-LOINC abnormal-value threshold mirroring
+// `confidenceScorer.ts`'s Anchor C rule (BNP > 200 pg/mL, HbA1c > 9.0%,
+// eGFR < 30 mL/min/1.73m²). Returns true iff the Observation's value
+// crosses the threshold. Pure: defensive parse — non-numeric or missing
+// values return false (no false-positive on a parse failure).
+function isAbnormalValue(
+  observation: { valueQuantity?: { value?: unknown }; value?: unknown },
+  loincCode: string,
+): boolean {
+  const raw = observation?.valueQuantity?.value ?? observation?.value;
+  const v = typeof raw === 'number' && Number.isFinite(raw) ? raw : undefined;
+  if (v === undefined) return false;
+  switch (loincCode) {
+    case HBA1C_LOINC:
+      return v > 9.0;
+    case BNP_LOINC:
+      return v > 200;
+    case EGFR_LOINC:
+      return v < 30;
+    default:
+      return false;
+  }
 }
 
 /** SDOH label per `_meta.labelingRules.sdoh`:

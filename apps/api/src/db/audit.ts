@@ -1,6 +1,11 @@
 import Database from 'better-sqlite3';
 
-export type AuditOutcome = 'success' | 'denied' | 'error';
+// S19 Thread B — extended with `'flagged'` for parity-mitigation
+// recommendation rows. The `Governance/parity` writeAudit call encodes
+// the structured flag list in the `fhirResource` field (no `details`
+// column in the schema); outcome `'flagged'` is the audit-trail signal
+// that this row is a recommendation, not a regular access event.
+export type AuditOutcome = 'success' | 'denied' | 'error' | 'flagged';
 
 export interface AuditEntry {
   actor: string;
