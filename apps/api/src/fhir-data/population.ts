@@ -133,6 +133,112 @@ export function riskScoreFor(conditionCount: number, recencyHours: number): numb
   return Math.round(probabilityDecimal * 100);
 }
 
+// --- S19 Thread C1 — monitoring Observations on a deterministic subset ---
+// Same LOINC codes `confidenceScorer.ts:CONDITION_TO_REQUIRED_LOINC` uses
+// for the Care Gap labeling rule. Defining inline here (not imported from
+// confidenceScorer) keeps `fhir-data/population.ts` as a leaf module —
+// `confidenceScorer.ts` already imports from this file, so a back-import
+// would create a cycle.
+const HBA1C_LOINC = '4548-4';
+const BNP_LOINC = '30934-4';
+const EGFR_LOINC = '62238-1';
+
+interface MonitoringObservation {
+  id: string;
+  loincCode: string;
+  display: string;
+  value: number;
+  unit: string;
+}
+
+// ICD-10 → required LOINC mapping, mirroring `confidenceScorer.ts`.
+// E11.9 → HbA1c, I50.9 → BNP, N18.3 → eGFR. Other conditions (F33.1,
+// depression; etc.) have no established monitoring convention and are
+// skipped — the eval labels them `expectedHasGap: null` for that reason.
+//
+// `abnormalValue` (where present) is what the S19 C2 schedule seeds for
+// pop-0014 (i=13) so Anchor C (abnormal labs) is met and the v3 rubric
+// returns 'high'/'critical' per Rule 2 — making pop-0014 a true held-out
+// positive Risk label. All other i%7===6 patients get `normalValue`.
+const ICD10_TO_LOINC: Record<string, { loinc: string; display: string; normalValue: number; abnormalValue?: number; unit: string }> = {
+  'E11.9': { loinc: HBA1C_LOINC, display: 'Hemoglobin A1c', normalValue: 7.2, abnormalValue: 10.2, unit: '%' },
+  'I50.9': { loinc: BNP_LOINC, display: 'Natriuretic peptide B', normalValue: 150, abnormalValue: 380, unit: 'pg/mL' },
+  'N18.3': { loinc: EGFR_LOINC, display: 'eGFR', normalValue: 75, abnormalValue: 22, unit: 'mL/min/1.73m2' },
+};
+
+// S19 Thread C2 — held-out-positive patient index. For this index, the
+// buildObservationsForIndex function seeds ABNORMAL values (crossing the
+// Anchor C threshold — HbA1c > 9.0%, BNP > 200, eGFR < 30) so the v3
+// rubric's Rule 2 makes the agent call 'high' or 'critical'. Without
+// this override, all i%7===6 patients (3-condition mix + 24h recency)
+// would be downgraded to 'moderate' by Rule 2 (2 anchors without Anchor
+// C), and the held-out Risk sensitivity metric would stay N/A.
+const ABNORMAL_VALUES_INDEX = 13;
+
+// S19 Thread C1 — seed monitoring Observations for a deterministic subset
+// of procedural patients. Subset = `i % 7 === 6` (matches the
+// 3-condition-mix patients from CONDITION_MIXES). Each patient's
+// conditions are checked against ICD10_TO_LOINC; if any condition has a
+// matching LOINC convention, the matching monitoring Observation is
+// seeded with a normal-range value (HbA1c 7.2%, BNP 150 pg/mL, eGFR 75
+// mL/min/1.73m²). The Care Gap agent sees a "monitored" record for
+// these patients and (per the labeling rule) the eval labels them
+// `expectedHasGap: false`.
+//
+// Exception: `i === ABNORMAL_VALUES_INDEX` (pop-0014) gets ABNORMAL
+// values (HbA1c 10.2%, BNP 380 pg/mL, eGFR 22 mL/min/1.73m²) so Anchor C
+// is met. This single patient is the held-out Risk positive (C2).
+//
+// Returns [] for indices outside the subset or with no classifiable
+// conditions. Exported for direct unit testing.
+export function buildObservationsForIndex(
+  i: number,
+  conditions: Array<{ code: string }>,
+): MonitoringObservation[] {
+  if (i % 7 !== 6) return [];
+  const useAbnormal = i === ABNORMAL_VALUES_INDEX;
+  const observations: MonitoringObservation[] = [];
+  const seenLoinc = new Set<string>();
+  for (const c of conditions) {
+    const mapping = ICD10_TO_LOINC[c.code];
+    if (!mapping) continue;
+    if (seenLoinc.has(mapping.loinc)) continue;
+    seenLoinc.add(mapping.loinc);
+    observations.push({
+      id: `pop-${String(i + 1).padStart(4, '0')}-obs-${mapping.loinc}`,
+      loincCode: mapping.loinc,
+      display: mapping.display,
+      value: useAbnormal && mapping.abnormalValue !== undefined ? mapping.abnormalValue : mapping.normalValue,
+      unit: mapping.unit,
+    });
+  }
+  return observations;
+}
+
+// --- S19 Thread C2 — held-out positive scheduling ---
+// Force specific held-out patient indices to a fresh-discharge recency
+// so the held-out Risk sensitivity metric has at least one positive
+// label (`riskScoreFor ≥ 75`). Without this, all 10 held-out patients
+// (pop-0011..pop-0020) happen to land on a non-fresh recency bucket and
+// the metric is structurally N/A — indistinguishable from "fails" to a
+// reviewer.
+//
+// pop-0014 (i=13) is selected because its condition mix
+// (`CONDITION_MIXES[13 % 7] = CONDITION_MIXES[6]`) is the 3-condition
+// combo (diabetes + CHF + depression), and a fresh-discharge recency
+// (24h) yields `riskScoreFor(3, 24) = 0.10 + 0.54 + 0.20 + 0.08 = 0.92`
+// → riskScore 92 ≥ 75. With this override, the held-out sensitivity
+// metric becomes defined.
+//
+// Exported for direct unit testing.
+export function forceRecencyForIndex(i: number): number | undefined {
+  // pop-0014 — i=13 — 3-condition mix + fresh discharge.
+  // Holding back to exactly one patient per S19 scope; S20+ can extend
+  // this list if more held-out positives are needed.
+  if (i === 13) return 24;
+  return undefined;
+}
+
 /**
  * S14 B3/B5 — return the AHC-HRSN screening Observation (if any) for the
  * procedural patient at the given 0-based index. Only `pop-0005` (explicit
@@ -169,7 +275,12 @@ export function generatePopulation(): SeedPatient[] {
     const lastName = pick(rng, LAST_NAMES);
     const birthDate = birthDateFor(rng);
     const raceEthnicity = raceEthnicityFor(rng);
-    const recencyHours = pick(rng, RECENCY_HOURS_OPTIONS);
+    // S19 Thread C2 — held-out positive scheduling: for indices the
+    // `forceRecencyForIndex` table names, override the RNG-derived
+    // recency so the held-out Risk sensitivity metric has at least one
+    // positive label. See the function's doc comment for why i=13 is
+    // the chosen index.
+    const recencyHours = forceRecencyForIndex(i) ?? pick(rng, RECENCY_HOURS_OPTIONS);
 
     const mix = CONDITION_MIXES[i % CONDITION_MIXES.length];
     const conditions = mix.map((key) => {
@@ -179,6 +290,11 @@ export function generatePopulation(): SeedPatient[] {
 
     const riskScore = riskScoreFor(mix.length, recencyHours);
     const sdoh = buildSdohForIndex(i);
+    // S19 Thread C1 — for `i % 7 === 6` (3-condition-mix patients),
+    // seed matching monitoring Observations so the Care Gap agent sees
+    // both gaps AND gap-closures; the eval labels them
+    // `expectedHasGap: false`.
+    const observations = buildObservationsForIndex(i, conditions);
 
     patients.push({
       id,
@@ -187,6 +303,7 @@ export function generatePopulation(): SeedPatient[] {
       birthDate,
       raceEthnicity,
       conditions,
+      ...(observations.length > 0 ? { observations } : {}),
       ...(sdoh ?? {}),
       encounter: { id: `${id}-encounter`, conditionId: conditions[0].id, dischargedHoursAgo: recencyHours },
       riskScore,
