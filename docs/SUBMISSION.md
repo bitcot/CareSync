@@ -1,7 +1,7 @@
 ---
 title: "CareSync AI — HL7 AI Challenge 2026 Submission"
 subtitle: "A multi-agent FHIR care orchestrator with citation-enforced AI for complex-patient care coordination"
-team: "Bitcot — Raj Sanghvi (lead), Manjula (engineering)"
+team: "Bitcot"
 date: "2026-07-10"
 status: "POC — production SMART hardening, cost capture, and trust-eval closure (model card + parity mitigation) shipped"
 contact: "raj@bitcot.com"
