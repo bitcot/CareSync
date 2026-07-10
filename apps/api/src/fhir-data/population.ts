@@ -156,14 +156,28 @@ interface MonitoringObservation {
 // depression; etc.) have no established monitoring convention and are
 // skipped — the eval labels them `expectedHasGap: null` for that reason.
 //
+// S19 review-fix: `normalValue` lowered to clinically-controlled levels
+// (HbA1c 6.5% — under the <7.0% diabetes-control target; BNP 50 pg/mL —
+// under the <100 normal ceiling; eGFR 90 mL/min — well above the <30
+// kidney-failure threshold). Previous values (7.2 / 150 / 75) crossed the
+// clinical-control target on HbA1c and triggered the Care Gap agent's
+// "value above target → flag for intervention" reading, producing false
+// positives against the labeling rule (which says "Observation on file
+// = no gap" — a simplification that doesn't account for value range).
+// Lowering to truly-normal lets the rule and the agent agree.
+//
 // `abnormalValue` (where present) is what the S19 C2 schedule seeds for
 // pop-0014 (i=13) so Anchor C (abnormal labs) is met and the v3 rubric
 // returns 'high'/'critical' per Rule 2 — making pop-0014 a true held-out
-// positive Risk label. All other i%7===6 patients get `normalValue`.
+// positive Risk label. The semantic upgrade in
+// `apps/api/src/eval/labelFromBundle.ts:careGapLabel` reconciles the
+// "Observation on file = no gap" rule with the Care Gap agent's value-
+// range reading for this single patient: an abnormal-value Observation
+// counts as a gap (rule updated to be clinical, not just present/absent).
 const ICD10_TO_LOINC: Record<string, { loinc: string; display: string; normalValue: number; abnormalValue?: number; unit: string }> = {
-  'E11.9': { loinc: HBA1C_LOINC, display: 'Hemoglobin A1c', normalValue: 7.2, abnormalValue: 10.2, unit: '%' },
-  'I50.9': { loinc: BNP_LOINC, display: 'Natriuretic peptide B', normalValue: 150, abnormalValue: 380, unit: 'pg/mL' },
-  'N18.3': { loinc: EGFR_LOINC, display: 'eGFR', normalValue: 75, abnormalValue: 22, unit: 'mL/min/1.73m2' },
+  'E11.9': { loinc: HBA1C_LOINC, display: 'Hemoglobin A1c', normalValue: 6.5, abnormalValue: 10.2, unit: '%' },
+  'I50.9': { loinc: BNP_LOINC, display: 'Natriuretic peptide B', normalValue: 50, abnormalValue: 380, unit: 'pg/mL' },
+  'N18.3': { loinc: EGFR_LOINC, display: 'eGFR', normalValue: 90, abnormalValue: 22, unit: 'mL/min/1.73m2' },
 };
 
 // S19 Thread C2 — held-out-positive patient index. For this index, the
