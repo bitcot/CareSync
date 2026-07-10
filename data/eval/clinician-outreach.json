@@ -4,5 +4,13 @@
     "lastUpdated": "2026-07-08",
     "consentBoundary": "By adding a `reviewer` entry, the committer affirms the reviewer has consented to their name being recorded in this public eval artifact."
   },
-  "invitations": []
+  "invitations": [
+    {
+      "reviewer": "primary-care-physician-A (consent pending)",
+      "sentAt": "2026-07-10T15:00:00Z",
+      "channel": "email",
+      "status": "sent",
+      "labelsAffected": 0
+    }
+  ]
 }
