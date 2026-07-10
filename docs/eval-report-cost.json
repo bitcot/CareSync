@@ -1,0 +1,956 @@
+{
+  "model": "gpt-5.5",
+  "generatedAt": "2026-07-10T06:11:24.093Z",
+  "patients": [
+    {
+      "patientId": "robert-kim",
+      "agents": [
+        {
+          "agentId": "sdoh",
+          "usage": {
+            "inputTokens": 1183,
+            "outputTokens": 95,
+            "totalTokens": 1278
+          },
+          "costUsd": 0.0391
+        },
+        {
+          "agentId": "risk",
+          "usage": {
+            "inputTokens": 2145,
+            "outputTokens": 292,
+            "totalTokens": 2437
+          },
+          "costUsd": 0.0828
+        },
+        {
+          "agentId": "careGap",
+          "usage": {
+            "inputTokens": 1160,
+            "outputTokens": 902,
+            "totalTokens": 2062
+          },
+          "costUsd": 0.1192
+        },
+        {
+          "agentId": "actionPlanner",
+          "usage": {
+            "inputTokens": 737,
+            "outputTokens": 495,
+            "totalTokens": 1232
+          },
+          "costUsd": 0.0679
+        }
+      ],
+      "totalInputTokens": 5225,
+      "totalOutputTokens": 1784
+    },
+    {
+      "patientId": "angela-diaz",
+      "agents": [
+        {
+          "agentId": "sdoh",
+          "usage": {
+            "inputTokens": 1477,
+            "outputTokens": 397,
+            "totalTokens": 1874
+          },
+          "costUsd": 0.0766
+        },
+        {
+          "agentId": "risk",
+          "usage": {
+            "inputTokens": 2439,
+            "outputTokens": 336,
+            "totalTokens": 2775
+          },
+          "costUsd": 0.0946
+        },
+        {
+          "agentId": "careGap",
+          "usage": {
+            "inputTokens": 1454,
+            "outputTokens": 984,
+            "totalTokens": 2438
+          },
+          "costUsd": 0.1348
+        },
+        {
+          "agentId": "actionPlanner",
+          "usage": {
+            "inputTokens": 950,
+            "outputTokens": 901,
+            "totalTokens": 1851
+          },
+          "costUsd": 0.1139
+        }
+      ],
+      "totalInputTokens": 6320,
+      "totalOutputTokens": 2618
+    },
+    {
+      "patientId": "samuel-wright",
+      "agents": [
+        {
+          "agentId": "sdoh",
+          "usage": {
+            "inputTokens": 1742,
+            "outputTokens": 182,
+            "totalTokens": 1924
+          },
+          "costUsd": 0.0618
+        },
+        {
+          "agentId": "risk",
+          "usage": {
+            "inputTokens": 2704,
+            "outputTokens": 469,
+            "totalTokens": 3173
+          },
+          "costUsd": 0.1145
+        },
+        {
+          "agentId": "careGap",
+          "usage": {
+            "inputTokens": 1719,
+            "outputTokens": 879,
+            "totalTokens": 2598
+          },
+          "costUsd": 0.1309
+        },
+        {
+          "agentId": "actionPlanner",
+          "usage": {
+            "inputTokens": 775,
+            "outputTokens": 835,
+            "totalTokens": 1610
+          },
+          "costUsd": 0.1029
+        }
+      ],
+      "totalInputTokens": 6940,
+      "totalOutputTokens": 2365
+    },
+    {
+      "patientId": "pop-0002",
+      "agents": [
+        {
+          "agentId": "sdoh",
+          "usage": {
+            "inputTokens": 1124,
+            "outputTokens": 286,
+            "totalTokens": 1410
+          },
+          "costUsd": 0.0567
+        },
+        {
+          "agentId": "risk",
+          "usage": {
+            "inputTokens": 2086,
+            "outputTokens": 488,
+            "totalTokens": 2574
+          },
+          "costUsd": 0.101
+        },
+        {
+          "agentId": "careGap",
+          "usage": {
+            "inputTokens": 1101,
+            "outputTokens": 1019,
+            "totalTokens": 2120
+          },
+          "costUsd": 0.1294
+        },
+        {
+          "agentId": "actionPlanner",
+          "usage": {
+            "inputTokens": 895,
+            "outputTokens": 965,
+            "totalTokens": 1860
+          },
+          "costUsd": 0.1189
+        }
+      ],
+      "totalInputTokens": 5206,
+      "totalOutputTokens": 2758
+    },
+    {
+      "patientId": "pop-0003",
+      "agents": [
+        {
+          "agentId": "sdoh",
+          "usage": {
+            "inputTokens": 1135,
+            "outputTokens": 230,
+            "totalTokens": 1365
+          },
+          "costUsd": 0.0514
+        },
+        {
+          "agentId": "risk",
+          "usage": {
+            "inputTokens": 2097,
+            "outputTokens": 468,
+            "totalTokens": 2565
+          },
+          "costUsd": 0.0992
+        },
+        {
+          "agentId": "careGap",
+          "usage": {
+            "inputTokens": 1112,
+            "outputTokens": 799,
+            "totalTokens": 1911
+          },
+          "costUsd": 0.1077
+        },
+        {
+          "agentId": "actionPlanner",
+          "usage": {
+            "inputTokens": 672,
+            "outputTokens": 426,
+            "totalTokens": 1098
+          },
+          "costUsd": 0.0594
+        }
+      ],
+      "totalInputTokens": 5016,
+      "totalOutputTokens": 1923
+    },
+    {
+      "patientId": "pop-0004",
+      "agents": [
+        {
+          "agentId": "sdoh",
+          "usage": {
+            "inputTokens": 1291,
+            "outputTokens": 262,
+            "totalTokens": 1553
+          },
+          "costUsd": 0.0585
+        },
+        {
+          "agentId": "risk",
+          "usage": {
+            "inputTokens": 2253,
+            "outputTokens": 700,
+            "totalTokens": 2953
+          },
+          "costUsd": 0.1263
+        },
+        {
+          "agentId": "careGap",
+          "usage": {
+            "inputTokens": 1268,
+            "outputTokens": 1042,
+            "totalTokens": 2310
+          },
+          "costUsd": 0.1359
+        },
+        {
+          "agentId": "actionPlanner",
+          "usage": {
+            "inputTokens": 982,
+            "outputTokens": 858,
+            "totalTokens": 1840
+          },
+          "costUsd": 0.1104
+        }
+      ],
+      "totalInputTokens": 5794,
+      "totalOutputTokens": 2862
+    },
+    {
+      "patientId": "pop-0005",
+      "agents": [
+        {
+          "agentId": "sdoh",
+          "usage": {
+            "inputTokens": 1471,
+            "outputTokens": 94,
+            "totalTokens": 1565
+          },
+          "costUsd": 0.0462
+        },
+        {
+          "agentId": "risk",
+          "usage": {
+            "inputTokens": 2433,
+            "outputTokens": 587,
+            "totalTokens": 3020
+          },
+          "costUsd": 0.1195
+        },
+        {
+          "agentId": "careGap",
+          "usage": {
+            "inputTokens": 1448,
+            "outputTokens": 984,
+            "totalTokens": 2432
+          },
+          "costUsd": 0.1346
+        },
+        {
+          "agentId": "actionPlanner",
+          "usage": {
+            "inputTokens": 942,
+            "outputTokens": 692,
+            "totalTokens": 1634
+          },
+          "costUsd": 0.0928
+        }
+      ],
+      "totalInputTokens": 6294,
+      "totalOutputTokens": 2357
+    },
+    {
+      "patientId": "pop-0006",
+      "agents": [
+        {
+          "agentId": "sdoh",
+          "usage": {
+            "inputTokens": 1276,
+            "outputTokens": 266,
+            "totalTokens": 1542
+          },
+          "costUsd": 0.0585
+        },
+        {
+          "agentId": "careGap",
+          "usage": {
+            "inputTokens": 1253,
+            "outputTokens": 980,
+            "totalTokens": 2233
+          },
+          "costUsd": 0.1293
+        },
+        {
+          "agentId": "risk",
+          "usage": {
+            "inputTokens": 2238,
+            "outputTokens": 641,
+            "totalTokens": 2879
+          },
+          "costUsd": 0.1201
+        },
+        {
+          "agentId": "actionPlanner",
+          "usage": {
+            "inputTokens": 903,
+            "outputTokens": 564,
+            "totalTokens": 1467
+          },
+          "costUsd": 0.079
+        }
+      ],
+      "totalInputTokens": 5670,
+      "totalOutputTokens": 2451
+    },
+    {
+      "patientId": "pop-0007",
+      "agents": [
+        {
+          "agentId": "sdoh",
+          "usage": {
+            "inputTokens": 1439,
+            "outputTokens": 277,
+            "totalTokens": 1716
+          },
+          "costUsd": 0.0637
+        },
+        {
+          "agentId": "risk",
+          "usage": {
+            "inputTokens": 2401,
+            "outputTokens": 606,
+            "totalTokens": 3007
+          },
+          "costUsd": 0.1206
+        },
+        {
+          "agentId": "careGap",
+          "usage": {
+            "inputTokens": 1416,
+            "outputTokens": 1018,
+            "totalTokens": 2434
+          },
+          "costUsd": 0.1372
+        },
+        {
+          "agentId": "actionPlanner",
+          "usage": {
+            "inputTokens": 945,
+            "outputTokens": 794,
+            "totalTokens": 1739
+          },
+          "costUsd": 0.103
+        }
+      ],
+      "totalInputTokens": 6201,
+      "totalOutputTokens": 2695
+    },
+    {
+      "patientId": "pop-0008",
+      "agents": [
+        {
+          "agentId": "sdoh",
+          "usage": {
+            "inputTokens": 1131,
+            "outputTokens": 260,
+            "totalTokens": 1391
+          },
+          "costUsd": 0.0543
+        },
+        {
+          "agentId": "risk",
+          "usage": {
+            "inputTokens": 2093,
+            "outputTokens": 440,
+            "totalTokens": 2533
+          },
+          "costUsd": 0.0963
+        },
+        {
+          "agentId": "careGap",
+          "usage": {
+            "inputTokens": 1108,
+            "outputTokens": 1043,
+            "totalTokens": 2151
+          },
+          "costUsd": 0.132
+        },
+        {
+          "agentId": "actionPlanner",
+          "usage": {
+            "inputTokens": 926,
+            "outputTokens": 667,
+            "totalTokens": 1593
+          },
+          "costUsd": 0.0899
+        }
+      ],
+      "totalInputTokens": 5258,
+      "totalOutputTokens": 2410
+    },
+    {
+      "patientId": "pop-0009",
+      "agents": [
+        {
+          "agentId": "sdoh",
+          "usage": {
+            "inputTokens": 1116,
+            "outputTokens": 231,
+            "totalTokens": 1347
+          },
+          "costUsd": 0.051
+        },
+        {
+          "agentId": "risk",
+          "usage": {
+            "inputTokens": 2078,
+            "outputTokens": 674,
+            "totalTokens": 2752
+          },
+          "costUsd": 0.1194
+        },
+        {
+          "agentId": "careGap",
+          "usage": {
+            "inputTokens": 1093,
+            "outputTokens": 1075,
+            "totalTokens": 2168
+          },
+          "costUsd": 0.1348
+        },
+        {
+          "agentId": "actionPlanner",
+          "usage": {
+            "inputTokens": 929,
+            "outputTokens": 1075,
+            "totalTokens": 2004
+          },
+          "costUsd": 0.1307
+        }
+      ],
+      "totalInputTokens": 5216,
+      "totalOutputTokens": 3055
+    },
+    {
+      "patientId": "pop-0010",
+      "agents": [
+        {
+          "agentId": "sdoh",
+          "usage": {
+            "inputTokens": 1318,
+            "outputTokens": 378,
+            "totalTokens": 1696
+          },
+          "costUsd": 0.0708
+        },
+        {
+          "agentId": "risk",
+          "usage": {
+            "inputTokens": 2280,
+            "outputTokens": 569,
+            "totalTokens": 2849
+          },
+          "costUsd": 0.1139
+        },
+        {
+          "agentId": "careGap",
+          "usage": {
+            "inputTokens": 1295,
+            "outputTokens": 995,
+            "totalTokens": 2290
+          },
+          "costUsd": 0.1319
+        },
+        {
+          "agentId": "actionPlanner",
+          "usage": {
+            "inputTokens": 998,
+            "outputTokens": 903,
+            "totalTokens": 1901
+          },
+          "costUsd": 0.1153
+        }
+      ],
+      "totalInputTokens": 5891,
+      "totalOutputTokens": 2845
+    },
+    {
+      "patientId": "pop-0011",
+      "agents": [
+        {
+          "agentId": "sdoh",
+          "usage": {
+            "inputTokens": 1284,
+            "outputTokens": 289,
+            "totalTokens": 1573
+          },
+          "costUsd": 0.061
+        },
+        {
+          "agentId": "risk",
+          "usage": {
+            "inputTokens": 2246,
+            "outputTokens": 595,
+            "totalTokens": 2841
+          },
+          "costUsd": 0.1157
+        },
+        {
+          "agentId": "careGap",
+          "usage": {
+            "inputTokens": 1261,
+            "outputTokens": 955,
+            "totalTokens": 2216
+          },
+          "costUsd": 0.127
+        },
+        {
+          "agentId": "actionPlanner",
+          "usage": {
+            "inputTokens": 930,
+            "outputTokens": 794,
+            "totalTokens": 1724
+          },
+          "costUsd": 0.1027
+        }
+      ],
+      "totalInputTokens": 5721,
+      "totalOutputTokens": 2633
+    },
+    {
+      "patientId": "pop-0012",
+      "agents": [
+        {
+          "agentId": "sdoh",
+          "usage": {
+            "inputTokens": 1287,
+            "outputTokens": 274,
+            "totalTokens": 1561
+          },
+          "costUsd": 0.0596
+        },
+        {
+          "agentId": "risk",
+          "usage": {
+            "inputTokens": 2249,
+            "outputTokens": 615,
+            "totalTokens": 2864
+          },
+          "costUsd": 0.1177
+        },
+        {
+          "agentId": "careGap",
+          "usage": {
+            "inputTokens": 1264,
+            "outputTokens": 875,
+            "totalTokens": 2139
+          },
+          "costUsd": 0.1191
+        },
+        {
+          "agentId": "actionPlanner",
+          "usage": {
+            "inputTokens": 828,
+            "outputTokens": 540,
+            "totalTokens": 1368
+          },
+          "costUsd": 0.0747
+        }
+      ],
+      "totalInputTokens": 5628,
+      "totalOutputTokens": 2304
+    },
+    {
+      "patientId": "pop-0013",
+      "agents": [
+        {
+          "agentId": "sdoh",
+          "usage": {
+            "inputTokens": 1282,
+            "outputTokens": 206,
+            "totalTokens": 1488
+          },
+          "costUsd": 0.0527
+        },
+        {
+          "agentId": "risk",
+          "usage": {
+            "inputTokens": 2244,
+            "outputTokens": 738,
+            "totalTokens": 2982
+          },
+          "costUsd": 0.1299
+        },
+        {
+          "agentId": "careGap",
+          "usage": {
+            "inputTokens": 1259,
+            "outputTokens": 894,
+            "totalTokens": 2153
+          },
+          "costUsd": 0.1209
+        },
+        {
+          "agentId": "actionPlanner",
+          "usage": {
+            "inputTokens": 859,
+            "outputTokens": 1020,
+            "totalTokens": 1879
+          },
+          "costUsd": 0.1235
+        }
+      ],
+      "totalInputTokens": 5644,
+      "totalOutputTokens": 2858
+    },
+    {
+      "patientId": "pop-0014",
+      "agents": [
+        {
+          "agentId": "sdoh",
+          "usage": {
+            "inputTokens": 1438,
+            "outputTokens": 221,
+            "totalTokens": 1659
+          },
+          "costUsd": 0.0581
+        },
+        {
+          "agentId": "risk",
+          "usage": {
+            "inputTokens": 2400,
+            "outputTokens": 753,
+            "totalTokens": 3153
+          },
+          "costUsd": 0.1353
+        },
+        {
+          "agentId": "careGap",
+          "usage": {
+            "inputTokens": 1415,
+            "outputTokens": 1043,
+            "totalTokens": 2458
+          },
+          "costUsd": 0.1397
+        },
+        {
+          "agentId": "actionPlanner",
+          "usage": {
+            "inputTokens": 996,
+            "outputTokens": 775,
+            "totalTokens": 1771
+          },
+          "costUsd": 0.1024
+        }
+      ],
+      "totalInputTokens": 6249,
+      "totalOutputTokens": 2792
+    },
+    {
+      "patientId": "pop-0015",
+      "agents": [
+        {
+          "agentId": "sdoh",
+          "usage": {
+            "inputTokens": 1125,
+            "outputTokens": 256,
+            "totalTokens": 1381
+          },
+          "costUsd": 0.0537
+        },
+        {
+          "agentId": "risk",
+          "usage": {
+            "inputTokens": 2087,
+            "outputTokens": 383,
+            "totalTokens": 2470
+          },
+          "costUsd": 0.0905
+        },
+        {
+          "agentId": "careGap",
+          "usage": {
+            "inputTokens": 1102,
+            "outputTokens": 1023,
+            "totalTokens": 2125
+          },
+          "costUsd": 0.1299
+        },
+        {
+          "agentId": "actionPlanner",
+          "usage": {
+            "inputTokens": 913,
+            "outputTokens": 921,
+            "totalTokens": 1834
+          },
+          "costUsd": 0.1149
+        }
+      ],
+      "totalInputTokens": 5227,
+      "totalOutputTokens": 2583
+    },
+    {
+      "patientId": "pop-0016",
+      "agents": [
+        {
+          "agentId": "sdoh",
+          "usage": {
+            "inputTokens": 1130,
+            "outputTokens": 226,
+            "totalTokens": 1356
+          },
+          "costUsd": 0.0509
+        },
+        {
+          "agentId": "risk",
+          "usage": {
+            "inputTokens": 2092,
+            "outputTokens": 368,
+            "totalTokens": 2460
+          },
+          "costUsd": 0.0891
+        },
+        {
+          "agentId": "careGap",
+          "usage": {
+            "inputTokens": 1107,
+            "outputTokens": 873,
+            "totalTokens": 1980
+          },
+          "costUsd": 0.115
+        },
+        {
+          "agentId": "actionPlanner",
+          "usage": {
+            "inputTokens": 715,
+            "outputTokens": 471,
+            "totalTokens": 1186
+          },
+          "costUsd": 0.065
+        }
+      ],
+      "totalInputTokens": 5044,
+      "totalOutputTokens": 1938
+    },
+    {
+      "patientId": "pop-0017",
+      "agents": [
+        {
+          "agentId": "sdoh",
+          "usage": {
+            "inputTokens": 1131,
+            "outputTokens": 376,
+            "totalTokens": 1507
+          },
+          "costUsd": 0.0659
+        },
+        {
+          "agentId": "risk",
+          "usage": {
+            "inputTokens": 2093,
+            "outputTokens": 614,
+            "totalTokens": 2707
+          },
+          "costUsd": 0.1137
+        },
+        {
+          "agentId": "careGap",
+          "usage": {
+            "inputTokens": 1108,
+            "outputTokens": 865,
+            "totalTokens": 1973
+          },
+          "costUsd": 0.1142
+        },
+        {
+          "agentId": "actionPlanner",
+          "usage": {
+            "inputTokens": 759,
+            "outputTokens": 435,
+            "totalTokens": 1194
+          },
+          "costUsd": 0.0625
+        }
+      ],
+      "totalInputTokens": 5091,
+      "totalOutputTokens": 2290
+    },
+    {
+      "patientId": "pop-0018",
+      "agents": [
+        {
+          "agentId": "sdoh",
+          "usage": {
+            "inputTokens": 1283,
+            "outputTokens": 239,
+            "totalTokens": 1522
+          },
+          "costUsd": 0.056
+        },
+        {
+          "agentId": "risk",
+          "usage": {
+            "inputTokens": 2245,
+            "outputTokens": 657,
+            "totalTokens": 2902
+          },
+          "costUsd": 0.1218
+        },
+        {
+          "agentId": "careGap",
+          "usage": {
+            "inputTokens": 1260,
+            "outputTokens": 1055,
+            "totalTokens": 2315
+          },
+          "costUsd": 0.137
+        },
+        {
+          "agentId": "actionPlanner",
+          "usage": {
+            "inputTokens": 980,
+            "outputTokens": 739,
+            "totalTokens": 1719
+          },
+          "costUsd": 0.0984
+        }
+      ],
+      "totalInputTokens": 5768,
+      "totalOutputTokens": 2690
+    },
+    {
+      "patientId": "pop-0019",
+      "agents": [
+        {
+          "agentId": "sdoh",
+          "usage": {
+            "inputTokens": 1282,
+            "outputTokens": 276,
+            "totalTokens": 1558
+          },
+          "costUsd": 0.0597
+        },
+        {
+          "agentId": "careGap",
+          "usage": {
+            "inputTokens": 1259,
+            "outputTokens": 924,
+            "totalTokens": 2183
+          },
+          "costUsd": 0.1239
+        },
+        {
+          "agentId": "risk",
+          "usage": {
+            "inputTokens": 2244,
+            "outputTokens": 725,
+            "totalTokens": 2969
+          },
+          "costUsd": 0.1286
+        },
+        {
+          "agentId": "actionPlanner",
+          "usage": {
+            "inputTokens": 880,
+            "outputTokens": 799,
+            "totalTokens": 1679
+          },
+          "costUsd": 0.1019
+        }
+      ],
+      "totalInputTokens": 5665,
+      "totalOutputTokens": 2724
+    },
+    {
+      "patientId": "pop-0020",
+      "agents": [
+        {
+          "agentId": "sdoh",
+          "usage": {
+            "inputTokens": 1276,
+            "outputTokens": 197,
+            "totalTokens": 1473
+          },
+          "costUsd": 0.0516
+        },
+        {
+          "agentId": "careGap",
+          "usage": {
+            "inputTokens": 1253,
+            "outputTokens": 923,
+            "totalTokens": 2176
+          },
+          "costUsd": 0.1236
+        },
+        {
+          "agentId": "risk",
+          "usage": {
+            "inputTokens": 2238,
+            "outputTokens": 762,
+            "totalTokens": 3000
+          },
+          "costUsd": 0.1322
+        },
+        {
+          "agentId": "actionPlanner",
+          "usage": {
+            "inputTokens": 885,
+            "outputTokens": 893,
+            "totalTokens": 1778
+          },
+          "costUsd": 0.1114
+        }
+      ],
+      "totalInputTokens": 5652,
+      "totalOutputTokens": 2775
+    }
+  ],
+  "aggregate": {
+    "totalCostUsd": 8.69,
+    "costPerPatient": 0.395
+  }
+}
